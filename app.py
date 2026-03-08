@@ -19,6 +19,9 @@ def get_data():
     df, trades = run_backtest(df)
     return df, trades, bull, bear
 df, trades, bull, bear = get_data()
+if df is None or df.empty:
+    st.error("Failed to download BTC data from Yahoo Finance.")
+    st.stop()
 
 # CURRENT STATUS
 latest = df.iloc[-1]
@@ -96,3 +99,4 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
+
