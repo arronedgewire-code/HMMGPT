@@ -1,58 +1,64 @@
-import numpy as np
+# indicators.py
 import pandas as pd
 import ta
 
-def add_indicators(df):
+def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Adds all technical indicators required for the HMM regime-based strategy.
-    Returns a DataFrame with flattened scalar columns.
+    Add all technical indicators to the dataframe safely.
+    Ensures all inputs are 1D Series.
     """
 
-    df = df.copy()
-
-    # -----------------------------
-    # Volume volatility
-    # -----------------------------
-    df["volume_vol"] = df["Volume"].pct_change().rolling(24).std().fillna(0)
+    # Force 1D Series
+    close = df["Close"].squeeze()
+    high = df["High"].squeeze()
+    low = df["Low"].squeeze()
+    volume = df["Volume"].squeeze()
 
     # -----------------------------
     # RSI
     # -----------------------------
-    df["RSI"] = ta.momentum.RSIIndicator(close=df["Close"], window=14).rsi().fillna(0)
+    df["RSI"] = ta.momentum.RSIIndicator(close=close, window=14).rsi()
 
     # -----------------------------
     # Momentum
     # -----------------------------
-    df["Momentum"] = df["Close"].pct_change(12).fillna(0)
+    df["Momentum"] = close.pct_change(12)
 
     # -----------------------------
-    # Volatility (High-Low / Close)
+    # Volatility
     # -----------------------------
-    df["Volatility"] = ((df["High"] - df["Low"]) / df["Close"]).rolling(12).std().fillna(0)
+    df["Volatility"] = (high - low) / close
 
     # -----------------------------
-    # Moving Averages
+    # Volume SMA
     # -----------------------------
-    df["Volume_SMA"] = df["Volume"].rolling(20).mean().fillna(method="bfill")
-    df["EMA50"] = ta.trend.ema_indicator(df["Close"], window=50).fillna(method="bfill")
-    df["EMA200"] = ta.trend.ema_indicator(df["Close"], window=200).fillna(method="bfill")
+    df["Volume_SMA"] = volume.rolling(20).mean()
+
+    # -----------------------------
+    # EMA50 & EMA200
+    # -----------------------------
+    df["EMA50"] = close.ewm(span=50, adjust=False).mean()
+    df["EMA200"] = close.ewm(span=200, adjust=False).mean()
 
     # -----------------------------
     # ADX
     # -----------------------------
-    df["ADX"] = ta.trend.ADXIndicator(df["High"], df["Low"], df["Close"], window=14).adx().fillna(0)
+    df["ADX"] = ta.trend.ADXIndicator(high=high, low=low, close=close, window=14).adx()
 
     # -----------------------------
     # MACD
     # -----------------------------
-    macd = ta.trend.MACD(df["Close"], window_slow=26, window_fast=12, window_sign=9)
-    df["MACD"] = macd.macd().fillna(0)
-    df["MACD_signal"] = macd.macd_signal().fillna(0)
+    macd = ta.trend.MACD(close)
+    df["MACD"] = macd.macd()
+    df["MACD_signal"] = macd.macd_signal()
 
     # -----------------------------
-    # Ensure all columns are 1D scalars
+    # Volume Volatility
     # -----------------------------
-    for col in ["volume_vol","RSI","Momentum","Volatility","Volume_SMA","EMA50","EMA200","ADX","MACD","MACD_signal"]:
-        df[col] = df[col].values.flatten()
+    df["volume_vol"] = volume.pct_change().rolling(24).std()
+
+    # Fill NaNs from indicators to avoid errors
+    df.fillna(method='bfill', inplace=True)
+    df.fillna(method='ffill', inplace=True)
 
     return df
