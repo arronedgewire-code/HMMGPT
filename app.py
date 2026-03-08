@@ -15,16 +15,16 @@ st.set_page_config(page_title="Regime-Based Trading Bot", layout="wide")
 st.title("Regime-Based Trading Bot Dashboard")
 
 # --------------------------------
-# Fetch Data
+# Fetch Data (robust)
 # --------------------------------
-@st.cache_data(ttl=3600)  # Cache for 1 hour
+@st.cache_data(ttl=3600)
 def get_data():
     """
     Fetch BTC data, add indicators, detect regimes, and run backtest.
     Fully robust to:
       - Empty or NaN data from Yahoo
       - 2D Series issues with TA indicators
-      - HMM not converging
+      - HMM not converging / missing columns
       - Backtester warnings/errors
     Returns:
         df (pd.DataFrame): DataFrame with indicators & regimes
@@ -47,10 +47,17 @@ def get_data():
         df = add_indicators(df)
     except Exception as e:
         print(f"[get_data] Error adding indicators: {e}")
-        # fallback: minimal indicators
         df["regime"] = "Neutral"
         df["Equity"] = 1.0
+        # Ensure required columns for detect_regimes
+        for col in ["Returns", "Range"]:
+            df[col] = 0.0
         return df, [], None, None
+
+    # === Ensure required columns exist for regime detection ===
+    for col in ["Returns", "Range"]:
+        if col not in df.columns:
+            df[col] = 0.0
 
     # === Detect regimes safely ===
     try:
@@ -72,6 +79,11 @@ def get_data():
         df["regime"] = "Neutral"
     if "Equity" not in df.columns:
         df["Equity"] = 1.0
+
+    # Convert any single-value Series to scalars to avoid formatting errors
+    for col in df.columns:
+        if isinstance(df[col], pd.Series) and df[col].shape[1:] == (1,):
+            df[col] = df[col].squeeze()
 
     return df, trades, bull_state, bear_state
 
@@ -177,6 +189,7 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df)
+
 
 
 
