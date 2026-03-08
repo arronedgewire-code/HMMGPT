@@ -20,47 +20,64 @@ st.title("Regime-Based Trading Bot Dashboard")
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def get_data():
     """
-    Fetch BTC data, compute indicators, detect regimes, and run backtest.
-    Handles rate limits and ensures TA indicators receive 1D Series.
+    Fetch BTC data, compute indicators, detect regimes, and run backtest safely.
     Returns:
         df (pd.DataFrame): Full dataframe with indicators
         trades (list): Backtest trade log
         bull_state (int): Index of Bull regime
         bear_state (int): Index of Bear/Crash regime
     """
-    # -----------------------------
-    # Fetch BTC data safely
-    # -----------------------------
-    df = fetch_btc_data()
-    if df.empty:
-        print("[get_data] No data retrieved. Returning empty results.")
-        return pd.DataFrame(), [], None, None
+    # ----------------------------------------
+    # Step 1: Fetch data safely
+    # ----------------------------------------
+    try:
+        df = fetch_btc_data()
+    except Exception as e:
+        print(f"[get_data] Error fetching data: {e}")
+        return None, None, None, None
 
-    # -----------------------------
-    # Add indicators safely
-    # -----------------------------
+    if df is None or df.empty:
+        print("[get_data] No data retrieved. Returning None.")
+        return None, None, None, None
+
+    # ----------------------------------------
+    # Step 2: Add indicators safely
+    # ----------------------------------------
     try:
         df = add_indicators(df)
     except Exception as e:
         print(f"[get_data] Error adding indicators: {e}")
-        return df, [], None, None
+        return df, None, None, None
 
-    # -----------------------------
-    # Detect regimes safely
-    # -----------------------------
+    # ----------------------------------------
+    # Step 3: Detect regimes safely
+    # ----------------------------------------
     try:
         df, bull_state, bear_state = detect_regimes(df)
     except Exception as e:
         print(f"[get_data] Error detecting regimes: {e}")
-        bull_state, bear_state = None, None
+        bull_state = None
+        bear_state = None
 
-    # -----------------------------
-    # Run backtest safely
-    # -----------------------------
+        # Create an empty regime column if missing
+        if "regime" not in df.columns:
+            df["regime"] = None
+
+    # ----------------------------------------
+    # Step 4: Run backtest safely
+    # ----------------------------------------
     try:
         df, trades = run_backtest(df)
     except Exception as e:
         print(f"[get_data] Error running backtest: {e}")
+        trades = []
+
+    # ----------------------------------------
+    # Final safety checks
+    # ----------------------------------------
+    if "regime" not in df.columns:
+        df["regime"] = None
+    if trades is None:
         trades = []
 
     return df, trades, bull_state, bear_state
@@ -154,4 +171,5 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df)
+
 
