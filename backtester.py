@@ -13,17 +13,21 @@ def confirmation_score(row):
     score = 0
     try:
         # Convert Series to scalars for safe comparison
-        rsi = float(row.get("RSI", 0))
-        momentum = float(row.get("Momentum", 0))
-        vol = float(row.get("Volatility", 0))
-        volume = float(row.get("Volume", 0))
-        volume_sma = float(row.get("Volume_SMA", 0))
-        adx = float(row.get("ADX", 0))
-        close = float(row.get("Close", 0))
-        ema50 = float(row.get("EMA50", 0))
-        ema200 = float(row.get("EMA200", 0))
-        macd = float(row.get("MACD", 0))
-        signal = float(row.get("Signal", 0))
+        def safe_float(val):
+            if isinstance(val, pd.Series):
+                return float(val.iloc[0]) if not val.empty else 0.0
+            return float(val)
+        rsi = safe_float(row.get("RSI", 0))
+        momentum = safe_float(row.get("Momentum", 0))
+        vol = safe_float(row.get("Volatility", 0))
+        volume = safe_float(row.get("Volume", 0))
+        volume_sma = safe_float(row.get("Volume_SMA", 0))
+        adx = safe_float(row.get("ADX", 0))
+        close = safe_float(row.get("Close", 0))
+        ema50 = safe_float(row.get("EMA50", 0))
+        ema200 = safe_float(row.get("EMA200", 0))
+        macd = safe_float(row.get("MACD", 0))
+        signal = safe_float(row.get("Signal", 0))
 
         conditions = [
             rsi < 90,
@@ -95,3 +99,4 @@ def run_backtest(df, starting_capital=1000, leverage=5, min_confirmations=7, coo
 
     df["Equity"] = equity_curve
     return df, trades
+
