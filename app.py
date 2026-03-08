@@ -20,9 +20,9 @@ st.title("Regime-Based Trading Bot Dashboard")
 @st.cache_data(ttl=3600)
 def get_data():
     """
-    Fetch BTC data, add indicators, detect regimes, and run backtest.
+    Fetch BTC data from Binance, add indicators, detect regimes, and run backtest.
     Fully robust to:
-      - Empty or NaN data from Yahoo
+      - Empty or NaN data from Binance
       - 2D Series issues with TA indicators
       - HMM not converging / missing columns
       - Backtester warnings/errors
@@ -48,8 +48,7 @@ def get_data():
     except Exception as e:
         print(f"[get_data] Error adding indicators: {e}")
         df["regime"] = "Neutral"
-        df["Equity"] = 1.0
-        # Ensure required columns for detect_regimes
+        df["Equity"] = pd.Series(1.0, index=df.index)
         for col in ["Returns", "Range"]:
             df[col] = 0.0
         return df, [], None, None
@@ -78,12 +77,7 @@ def get_data():
     if "regime" not in df.columns:
         df["regime"] = "Neutral"
     if "Equity" not in df.columns:
-        df["Equity"] = 1.0
-
-    # Convert any single-value Series to scalars to avoid formatting errors
-    for col in df.columns:
-        if isinstance(df[col], pd.Series) and df[col].shape[1:] == (1,):
-            df[col] = df[col].squeeze()
+        df["Equity"] = pd.Series(1.0, index=df.index)
 
     return df, trades, bull_state, bear_state
 
@@ -105,8 +99,17 @@ except Exception as e:
 latest = df.iloc[-1]
 
 # Ensure 'regime' is scalar
-regime_value = latest["regime"].iloc[0] if isinstance(latest["regime"], pd.Series) else latest.get("regime", "N/A")
-signal = "LONG" if regime_value == "Bull" else "CASH"
+regime_value = latest["regime"] if "regime" in latest.index else "N/A"
+if isinstance(regime_value, pd.Series):
+    regime_value = regime_value.iloc[0]
+
+# Signal reflects long, short, and cash states
+if regime_value == "Bull":
+    signal = "LONG"
+elif regime_value == "Crash":
+    signal = "SHORT"
+else:
+    signal = "CASH"
 
 st.subheader("Current Status")
 st.markdown(f"**Detected Regime:** {regime_value}")
@@ -160,7 +163,7 @@ fig.update_layout(
     height=600
 )
 
-st.plotly_chart(fig, width='stretch')  # replaces use_container_width=True
+st.plotly_chart(fig, width='stretch')
 
 # --------------------------------
 # Metrics
@@ -171,7 +174,6 @@ equity_curve = df.get("Equity")
 trades_df = pd.DataFrame(trades) if trades is not None else pd.DataFrame()
 
 if equity_curve is not None and not equity_curve.empty:
-    # Ensure we always work with scalars
     try:
         total_return = float((equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100)
     except Exception:
@@ -184,23 +186,26 @@ if equity_curve is not None and not equity_curve.empty:
 
     alpha = total_return - buy_hold_return
 
-    # Win rate
+    # Win rate — only count exit rows that carry a PnL value
     if "PnL" in trades_df.columns and not trades_df.empty:
-        wins = trades_df["PnL"].gt(0).sum()  # number of profitable trades
-        win_rate = float((wins / trades_df.shape[0]) * 100)
+        pnl_trades = trades_df[trades_df["PnL"].notna()]
+        if len(pnl_trades) > 0:
+            win_rate = float((pnl_trades["PnL"].gt(0).sum() / len(pnl_trades)) * 100)
+        else:
+            win_rate = 0.0
     else:
-        wins = 0
         win_rate = 0.0
 
     # Drawdown
     drawdown = (equity_curve.cummax() - equity_curve) / equity_curve.cummax()
     max_drawdown = float(drawdown.max() * 100)
 
-    # Display metrics
-    st.metric("Total Return (%)", f"{total_return:.2f}")
-    st.metric("Alpha vs Buy & Hold (%)", f"{alpha:.2f}")
-    st.metric("Win Rate (%)", f"{win_rate:.2f}")
-    st.metric("Max Drawdown (%)", f"{max_drawdown:.2f}")
+    # Display metrics in a single row
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Return (%)", f"{total_return:.2f}")
+    col2.metric("Alpha vs Buy & Hold (%)", f"{alpha:.2f}")
+    col3.metric("Win Rate (%)", f"{win_rate:.2f}")
+    col4.metric("Max Drawdown (%)", f"{max_drawdown:.2f}")
 else:
     st.write("No backtest equity curve available.")
 
