@@ -127,16 +127,32 @@ fig = go.Figure(data=[go.Candlestick(
 )])
 
 colors = {"Bull": "rgba(0,255,0,0.1)", "Bear": "rgba(255,0,0,0.1)", "Crash": "rgba(255,0,0,0.2)"}
-for regime in df["regime"].dropna().unique():
-    regime_df = df[df["regime"] == regime]
-    if not regime_df.empty:
+
+# Draw a rectangle for each contiguous segment, not one per regime type
+regime_series = df["regime"].dropna()
+segment_start = regime_series.index[0]
+current_regime = regime_series.iloc[0]
+
+for i in range(1, len(regime_series)):
+    if regime_series.iloc[i] != current_regime:
         fig.add_vrect(
-            x0=regime_df.index[0],
-            x1=regime_df.index[-1],
-            fillcolor=colors.get(regime, "rgba(200,200,200,0.1)"),
+            x0=segment_start,
+            x1=regime_series.index[i - 1],
+            fillcolor=colors.get(current_regime, "rgba(200,200,200,0.1)"),
             opacity=0.3,
             line_width=0
         )
+        segment_start = regime_series.index[i]
+        current_regime = regime_series.iloc[i]
+
+# Draw the final segment
+fig.add_vrect(
+    x0=segment_start,
+    x1=regime_series.index[-1],
+    fillcolor=colors.get(current_regime, "rgba(200,200,200,0.1)"),
+    opacity=0.3,
+    line_width=0
+)
 
 fig.update_layout(
     xaxis_rangeslider_visible=False,
@@ -196,11 +212,3 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df)
-
-
-
-
-
-
-
-
