@@ -2,7 +2,11 @@ import pandas as pd
 import numpy as np
 import ta
 
+
 def add_indicators(df):
+
+    if df.empty:
+        raise ValueError("DataFrame is empty. Data download failed.")
 
     df["returns"] = df["Close"].pct_change()
 
@@ -10,7 +14,7 @@ def add_indicators(df):
 
     df["volume_vol"] = df["Volume"].pct_change().rolling(24).std()
 
-    df["RSI"] = ta.momentum.rsi(df["Close"], window=14)
+    df["RSI"] = ta.momentum.RSIIndicator(df["Close"], window=14).rsi()
 
     df["Momentum"] = df["Close"].pct_change(12)
 
@@ -18,7 +22,9 @@ def add_indicators(df):
 
     df["Volume_SMA"] = df["Volume"].rolling(20).mean()
 
-    df["ADX"] = ta.trend.adx(df["High"], df["Low"], df["Close"], window=14)
+    df["ADX"] = ta.trend.ADXIndicator(
+        df["High"], df["Low"], df["Close"], window=14
+    ).adx()
 
     df["EMA50"] = ta.trend.ema_indicator(df["Close"], 50)
 
@@ -29,4 +35,4 @@ def add_indicators(df):
     df["MACD"] = macd.macd()
     df["MACD_signal"] = macd.macd_signal()
 
-    return df
+    return df.dropna()
