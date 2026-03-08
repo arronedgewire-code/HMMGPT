@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import time
 
-def fetch_btc_data(ticker="BTC-USD", period="1y", interval="1h", max_retries=5, pause=5):
+def fetch_btc_data(ticker="BTC-USD", period="730d", interval="1h", max_retries=5, pause=5):
     """
     Fetch BTC data safely from Yahoo Finance with retry on rate limit or empty data.
     
@@ -42,3 +42,4 @@ def fetch_btc_data(ticker="BTC-USD", period="1y", interval="1h", max_retries=5, 
 
     print("[data_loader] Failed to fetch BTC data after multiple attempts.")
     return pd.DataFrame()
+
