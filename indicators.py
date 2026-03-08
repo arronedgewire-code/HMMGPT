@@ -1,24 +1,15 @@
+import ta
+
 def add_indicators(df):
-    import numpy as np
-    import ta
-
     df = df.copy()
+    
+    # Ensure series are 1D
+    close = df["Close"].squeeze()  # <- squeeze converts (N,1) -> (N,)
+    volume = df["Volume"].squeeze()
 
-    # Daily returns
-    df["Returns"] = df["Close"].pct_change()
-
-    # Range: High - Low normalized by Close
-    df["Range"] = (df["High"] - df["Low"]) / df["Close"]
-
-    # Volume volatility
-    df["volume_vol"] = df["Volume"].pct_change().rolling(24).std()
-
-    # RSI
-    df["RSI"] = ta.momentum.RSIIndicator(close=df["Close"], window=14).rsi()
-
-    # Momentum
-    df["Momentum"] = df["Close"].pct_change(12)
-
+    df["volume_vol"] = volume.pct_change().rolling(24).std()
+    df["RSI"] = ta.momentum.RSIIndicator(close=close, window=14).rsi()
+    df["Momentum"] = close.pct_change(12)
     # Simple Volatility
     df["Volatility"] = df["Close"].pct_change().rolling(24).std()
 
@@ -33,3 +24,4 @@ def add_indicators(df):
     df["Volume_SMA"] = df["Volume"].rolling(20).mean()
 
     return df
+
