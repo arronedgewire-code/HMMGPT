@@ -10,7 +10,7 @@ def fetch_btc_data(retries=5, pause=5):
     """
     for attempt in range(1, retries + 1):
         try:
-            df = yf.download("BTC-USD", period="360d", interval="1h", progress=False)
+            df = yf.download("BTC-USD", period="360d", interval="1h")
             if df.empty:
                 raise ValueError("Empty data received from Yahoo Finance.")
             return df
