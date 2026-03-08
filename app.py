@@ -11,23 +11,26 @@ st.set_page_config(layout="wide")
 st.title("BTC Regime Trading Dashboard")
 
 # Load data
+# Caching data for 1 hour
 @st.cache_data(ttl=3600)
 def get_data():
-
     df = load_data()
-
     if df is None or df.empty:
         return None, None, None, None
-
     df = add_indicators(df)
-
     df, bull, bear = detect_regimes(df)
-
     df, trades = run_backtest(df)
-
     return df, trades, bull, bear
 
-# CURRENT STATUS
+
+# === Fetch data safely ===
+df, trades, bull, bear = get_data()
+
+if df is None or df.empty:
+    st.error("Failed to download BTC data from Yahoo Finance. Please try again later.")
+    st.stop()  # Stops Streamlit execution here — nothing below runs
+
+# ✅ Safe to access df now
 latest = df.iloc[-1]
 
 signal = "LONG" if latest["regime"] == "Bull" else "CASH"
@@ -103,5 +106,6 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
+
 
 
