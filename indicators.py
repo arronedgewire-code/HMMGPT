@@ -5,34 +5,46 @@ import ta
 
 def add_indicators(df):
 
-    if df.empty:
+    if df is None or df.empty:
         raise ValueError("DataFrame is empty. Data download failed.")
 
-    df["returns"] = df["Close"].pct_change()
+    # ensure 1D series
+    close = df["Close"].squeeze()
+    high = df["High"].squeeze()
+    low = df["Low"].squeeze()
+    volume = df["Volume"].squeeze()
 
-    df["range"] = (df["High"] - df["Low"]) / df["Close"]
+    df["returns"] = close.pct_change()
 
-    df["volume_vol"] = df["Volume"].pct_change().rolling(24).std()
+    df["range"] = (high - low) / close
 
-    df["RSI"] = ta.momentum.RSIIndicator(df["Close"], window=14).rsi()
+    df["volume_vol"] = volume.pct_change().rolling(24).std()
 
-    df["Momentum"] = df["Close"].pct_change(12)
+    # RSI
+    rsi = ta.momentum.RSIIndicator(close, window=14)
+    df["RSI"] = pd.Series(rsi.rsi().values.flatten(), index=df.index)
 
+    # Momentum
+    df["Momentum"] = close.pct_change(12)
+
+    # Volatility
     df["Volatility"] = df["returns"].rolling(24).std()
 
-    df["Volume_SMA"] = df["Volume"].rolling(20).mean()
+    # Volume
+    df["Volume_SMA"] = volume.rolling(20).mean()
 
-    df["ADX"] = ta.trend.ADXIndicator(
-        df["High"], df["Low"], df["Close"], window=14
-    ).adx()
+    # ADX
+    adx = ta.trend.ADXIndicator(high, low, close, window=14)
+    df["ADX"] = pd.Series(adx.adx().values.flatten(), index=df.index)
 
-    df["EMA50"] = ta.trend.ema_indicator(df["Close"], 50)
+    # EMA
+    df["EMA50"] = ta.trend.ema_indicator(close, 50)
+    df["EMA200"] = ta.trend.ema_indicator(close, 200)
 
-    df["EMA200"] = ta.trend.ema_indicator(df["Close"], 200)
+    # MACD
+    macd = ta.trend.MACD(close)
 
-    macd = ta.trend.MACD(df["Close"])
-
-    df["MACD"] = macd.macd()
-    df["MACD_signal"] = macd.macd_signal()
+    df["MACD"] = pd.Series(macd.macd().values.flatten(), index=df.index)
+    df["MACD_signal"] = pd.Series(macd.macd_signal().values.flatten(), index=df.index)
 
     return df.dropna()
