@@ -147,11 +147,19 @@ if equity_curve is not None and not equity_curve.empty:
     buy_hold_return = (df["Close"].iloc[-1] / df["Close"].iloc[0] - 1) * 100
     alpha = total_return - buy_hold_return
 
-    wins = trades_df[trades_df.get("pnl", 0) > 0].shape[0]
-    win_rate = (wins / trades_df.shape[0] * 100) if not trades_df.empty else 0
+    # Win rate
+    if "PnL" in trades_df.columns and not trades_df.empty:
+        wins = trades_df[trades_df["PnL"] > 0].shape[0]
+        win_rate = (wins / trades_df.shape[0]) * 100
+    else:
+        wins = 0
+        win_rate = 0
+
+    # Drawdown
     drawdown = (equity_curve.cummax() - equity_curve) / equity_curve.cummax()
     max_drawdown = drawdown.max() * 100
 
+    # Display metrics
     st.metric("Total Return (%)", f"{total_return:.2f}")
     st.metric("Alpha vs Buy & Hold (%)", f"{alpha:.2f}")
     st.metric("Win Rate (%)", f"{win_rate:.2f}")
@@ -167,6 +175,7 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df)
+
 
 
 
