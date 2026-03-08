@@ -1,83 +1,104 @@
+# backtester.py
 import pandas as pd
 import numpy as np
 
-COOLDOWN_HOURS = 48
-
+# -----------------------------
+# CONFIRMATION SCORE FUNCTION
+# -----------------------------
 def confirmation_score(row):
+    """
+    Returns the number of confirmation conditions met (out of 8).
+    Skips row if any indicator is NaN.
+    """
+    # Early exit if NaN
+    required_cols = ["RSI","Momentum","Volatility","Volume_SMA","ADX","EMA50","EMA200","MACD","MACD_signal"]
+    if row[required_cols].isna().any():
+        return 0
 
-    conditions = [
-
-        row["RSI"] < 90,
-        row["Momentum"] > 0.01,
-        row["Volatility"] < 0.06,
-        row["Volume"] > row["Volume_SMA"],
-        row["ADX"] > 25,
-        row["Close"] > row["EMA50"],
-        row["Close"] > row["EMA200"],
-        row["MACD"] > row["MACD_signal"],
-    ]
-
-    return sum(conditions)
+    return sum([
+        float(row["RSI"]) < 90,
+        float(row["Momentum"]) > 0.01,
+        float(row["Volatility"]) < 0.06,
+        float(row["Volume"]) > float(row["Volume_SMA"]),
+        float(row["ADX"]) > 25,
+        float(row["Close"]) > float(row["EMA50"]),
+        float(row["Close"]) > float(row["EMA200"]),
+        float(row["MACD"]) > float(row["MACD_signal"])
+    ])
 
 
-def run_backtest(df):
-
-    capital = 1000
-    position = 0
+# -----------------------------
+# BACKTEST FUNCTION
+# -----------------------------
+def run_backtest(df, starting_capital=1000, leverage=5):
+    """
+    Runs a backtest on the given DataFrame.
+    Returns updated df with PnL column and a trades log DataFrame.
+    """
+    capital = starting_capital
+    position = 0  # 1 = long, 0 = cash
     entry_price = 0
-
-    equity_curve = []
-    trades = []
-
     cooldown_until = None
 
-    for i in range(len(df)):
+    equity_curve = []
+    trades_log = []
 
+    for i in range(len(df)):
         row = df.iloc[i]
         time = df.index[i]
 
-        score = confirmation_score(row)
-
+        # Skip rows during cooldown
         if cooldown_until and time < cooldown_until:
             equity_curve.append(capital)
             continue
 
-        # ENTRY
-        if position == 0:
+        # Score confirmations
+        score = confirmation_score(row)
 
-            if row["regime"] == "Bull" and score >= 7:
+        # Check HMM regime
+        regime = row.get("regime", "")
 
-                position = capital * 5 / row["Close"]  # 5x leverage
-                entry_price = row["Close"]
+        # -----------------------------
+        # ENTRY RULE: Bull regime + 7/8 confirmations
+        # -----------------------------
+        if position == 0 and regime == "Bull" and score >= 7:
+            position = 1
+            entry_price = row["Close"]
+            trades_log.append({
+                "EntryTime": time,
+                "EntryPrice": entry_price,
+                "ExitTime": None,
+                "ExitPrice": None,
+                "PnL": None
+            })
 
-                trades.append({
-                    "Entry": time,
-                    "EntryPrice": entry_price
-                })
+        # -----------------------------
+        # EXIT RULES: Bear/Crash regime or cooldown
+        # -----------------------------
+        elif position == 1 and regime in ["Bear", "Crash"]:
+            exit_price = row["Close"]
+            pnl = (exit_price - entry_price) / entry_price * starting_capital * leverage
+            capital += pnl
+            equity_curve.append(capital)
+            position = 0
+            cooldown_until = time + pd.Timedelta(hours=48)  # 48h cooldown
 
-        # EXIT
+            # Log trade exit
+            trades_log[-1]["ExitTime"] = time
+            trades_log[-1]["ExitPrice"] = exit_price
+            trades_log[-1]["PnL"] = pnl
+
+        # -----------------------------
+        # HOLD: Update equity
+        # -----------------------------
+        if position == 1:
+            # Unrealized PnL
+            pnl = (row["Close"] - entry_price) / entry_price * starting_capital * leverage
+            equity_curve.append(capital + pnl)
         else:
+            equity_curve.append(capital)
 
-            if row["regime"] == "Bear":
-
-                exit_price = row["Close"]
-
-                pnl = (exit_price - entry_price) / entry_price * 5
-
-                capital = capital * (1 + pnl)
-
-                trades[-1]["Exit"] = time
-                trades[-1]["ExitPrice"] = exit_price
-                trades[-1]["PnL"] = pnl
-
-                position = 0
-
-                cooldown_until = time + pd.Timedelta(hours=COOLDOWN_HOURS)
-
-        equity_curve.append(capital)
-
-    df["equity"] = equity_curve
-
-    trades = pd.DataFrame(trades)
-
+    df = df.copy()
+    df["PnL"] = equity_curve
+    trades = pd.DataFrame(trades_log)
     return df, trades
