@@ -51,5 +51,6 @@ def detect_regimes(df, n_states=3):
     regime_map = {bull_state: "Bull", bear_state: "Bear"}
     df = df.copy()
     df["regime"] = pd.Series(hidden_states, index=features.index).map(lambda x: regime_map.get(x, "Neutral"))
+    df["regime"] = df["regime"].ffill()  # fill NaN rows that were dropped by dropna()
 
     return df, bull_state, bear_state
