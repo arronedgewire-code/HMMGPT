@@ -6,18 +6,19 @@ from indicators import add_indicators
 from hmm_model import detect_regimes
 from backtester import run_backtest
 
-
 st.set_page_config(layout="wide")
 
 st.title("BTC Regime Trading Dashboard")
 
 # Load data
-df = load_data()
-df = add_indicators(df)
-
-df, bull, bear = detect_regimes(df)
-
-df, trades = run_backtest(df)
+@st.cache_data(ttl=3600) #cache timer?
+def get_data():
+    df = load_data()
+    df = add_indicators(df)
+    df, bull, bear = detect_regimes(df)
+    df, trades = run_backtest(df)
+    return df, trades, bull, bear
+df, trades, bull, bear = get_data()
 
 # CURRENT STATUS
 latest = df.iloc[-1]
