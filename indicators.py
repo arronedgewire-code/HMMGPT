@@ -3,6 +3,8 @@ import ta
 def add_indicators(df):
     df = df.copy()
 
+    df["Returns"] = close.pct_change()
+    df["Range"] = (high - low) / close
     # -----------------------------
     # Ensure columns are 1D Series
     # -----------------------------
@@ -11,6 +13,9 @@ def add_indicators(df):
     low = df["Low"].squeeze()
     volume = df["Volume"].squeeze()
 
+    macd_indicator = ta.trend.MACD(close=close)
+    df["MACD"] = macd_indicator.macd()
+    df["Signal"] = macd_indicator.macd_signal()
     # -----------------------------
     # Volume volatility
     # -----------------------------
@@ -48,3 +53,4 @@ def add_indicators(df):
     df["Volume_SMA"] = volume.rolling(20).mean()
 
     return df
+
