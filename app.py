@@ -1,111 +1,116 @@
+# app.py
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 
 from data_loader import load_data
 from indicators import add_indicators
 from hmm_model import detect_regimes
 from backtester import run_backtest
 
-st.set_page_config(layout="wide")
+# --------------------------------
+# Streamlit Page Setup
+# --------------------------------
+st.set_page_config(page_title="Regime-Based Trading Bot", layout="wide")
+st.title("Regime-Based Trading Bot Dashboard")
 
-st.title("BTC Regime Trading Dashboard")
-
-# Load data
-# Caching data for 1 hour
-@st.cache_data(ttl=3600)
+# --------------------------------
+# Fetch Data
+# --------------------------------
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def get_data():
     df = load_data()
     if df is None or df.empty:
         return None, None, None, None
+
+    # Add indicators
     df = add_indicators(df)
-    df, bull, bear = detect_regimes(df)
+
+    # Detect regimes
+    df, bull_state, bear_state = detect_regimes(df)
+
+    # Run backtest
     df, trades = run_backtest(df)
-    return df, trades, bull, bear
 
+    return df, trades, bull_state, bear_state
 
-# === Fetch data safely ===
-df, trades, bull, bear = get_data()
+df, trades, bull_state, bear_state = get_data()
 
 if df is None or df.empty:
     st.error("Failed to download BTC data from Yahoo Finance. Please try again later.")
-    st.stop()  # Stops Streamlit execution here — nothing below runs
+    st.stop()
 
-# ✅ Safe to access df now
+# --------------------------------
+# CURRENT SIGNAL
+# --------------------------------
 latest = df.iloc[-1]
-
 signal = "LONG" if latest["regime"] == "Bull" else "CASH"
 
-st.subheader("Current Market State")
+st.subheader("Current Status")
+st.markdown(f"**Detected Regime:** {latest['regime']}")
+st.markdown(f"**Trading Signal:** {signal}")
 
-col1, col2 = st.columns(2)
+# --------------------------------
+# Plotly Candlestick Chart with Regimes
+# --------------------------------
+st.subheader("BTC/USD Chart with Regimes")
 
-col1.metric("Current Signal", signal)
-col2.metric("Detected Regime", latest["regime"])
+# Create candlestick
+fig = go.Figure(data=[go.Candlestick(
+    x=df.index,
+    open=df["Open"],
+    high=df["High"],
+    low=df["Low"],
+    close=df["Close"],
+    name="Price"
+)])
 
-# PERFORMANCE METRICS
-
-total_return = (df["equity"].iloc[-1] / 1000 - 1) * 100
-
-buy_hold = (df["Close"].iloc[-1] / df["Close"].iloc[0] - 1) * 100
-
-alpha = total_return - buy_hold
-
-wins = (trades["PnL"] > 0).sum()
-win_rate = wins / len(trades) * 100 if len(trades) > 0 else 0
-
-drawdown = (df["equity"] / df["equity"].cummax() - 1).min() * 100
-
-st.subheader("Performance")
-
-c1, c2, c3, c4 = st.columns(4)
-
-c1.metric("Total Return", f"{total_return:.2f}%")
-c2.metric("Alpha vs BuyHold", f"{alpha:.2f}%")
-c3.metric("Win Rate", f"{win_rate:.1f}%")
-c4.metric("Max Drawdown", f"{drawdown:.2f}%")
-
-# REGIME COLORED CHART
-
-fig = go.Figure()
-
-fig.add_trace(
-    go.Candlestick(
-        x=df.index,
-        open=df["Open"],
-        high=df["High"],
-        low=df["Low"],
-        close=df["Close"],
-        name="BTC"
+# Color background based on regime
+colors = {"Bull": "rgba(0,255,0,0.1)", "Bear": "rgba(255,0,0,0.1)", "Crash": "rgba(255,0,0,0.2)"}
+for regime in df["regime"].unique():
+    regime_df = df[df["regime"] == regime]
+    fig.add_vrect(
+        x0=regime_df.index[0], x1=regime_df.index[-1],
+        fillcolor=colors.get(regime, "rgba(200,200,200,0.1)"),
+        opacity=0.3, line_width=0
     )
-)
-
-for i in range(len(df)):
-
-    color = None
-
-    if df["regime"].iloc[i] == "Bull":
-        color = "rgba(0,255,0,0.08)"
-
-    elif df["regime"].iloc[i] == "Bear":
-        color = "rgba(255,0,0,0.08)"
-
-    if color:
-
-        fig.add_vrect(
-            x0=df.index[i],
-            x1=df.index[min(i+1, len(df)-1)],
-            fillcolor=color,
-            opacity=0.2,
-            line_width=0
-        )
 
 fig.update_layout(
-    height=700,
-    title="BTC Price with Market Regimes",
-    xaxis_rangeslider_visible=False
+    xaxis_rangeslider_visible=False,
+    template="plotly_dark",
+    height=600
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
+# --------------------------------
+# Metrics
+# --------------------------------
+st.subheader("Backtest Metrics")
 
+equity_curve = df["Equity"]
+total_return = (equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100
+buy_hold_return = (df["Close"].iloc[-1] / df["Close"].iloc[0] - 1) * 100
+alpha = total_return - buy_hold_return
 
+# Win rate and max drawdown
+trades_df = pd.DataFrame(trades)
+wins = trades_df[trades_df["pnl"] > 0].shape[0]
+win_rate = (wins / trades_df.shape[0] * 100) if not trades_df.empty else 0
+
+drawdown = (equity_curve.cummax() - equity_curve) / equity_curve.cummax()
+max_drawdown = drawdown.max() * 100
+
+st.metric("Total Return (%)", f"{total_return:.2f}")
+st.metric("Alpha vs Buy & Hold (%)", f"{alpha:.2f}")
+st.metric("Win Rate (%)", f"{win_rate:.2f}")
+st.metric("Max Drawdown (%)", f"{max_drawdown:.2f}")
+
+# --------------------------------
+# Trades Log
+# --------------------------------
+st.subheader("Trade Log")
+if trades_df.empty:
+    st.write("No trades executed yet.")
+else:
+    st.dataframe(trades_df)
