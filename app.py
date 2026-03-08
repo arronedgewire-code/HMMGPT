@@ -28,37 +28,40 @@ def get_data():
         bull_state (int): Index of Bull regime
         bear_state (int): Index of Bear/Crash regime
     """
-    # === Fetch data safely ===
+    # -----------------------------
+    # Fetch BTC data safely
+    # -----------------------------
     df = fetch_btc_data()
-    if df is None or df.empty:
-        print("[get_data] No data retrieved. Returning None.")
-        return None, None, None, None
+    if df.empty:
+        print("[get_data] No data retrieved. Returning empty results.")
+        return pd.DataFrame(), [], None, None
 
-    # === Ensure columns are 1D for TA library ===
-    for col in ["Open", "High", "Low", "Close", "Volume"]:
-        if col in df.columns and df[col].ndim > 1:
-            df[col] = df[col].squeeze()
-
-    # === Add indicators safely ===
+    # -----------------------------
+    # Add indicators safely
+    # -----------------------------
     try:
         df = add_indicators(df)
     except Exception as e:
         print(f"[get_data] Error adding indicators: {e}")
-        return None, None, None, None
+        return df, [], None, None
 
-    # === Detect regimes safely ===
+    # -----------------------------
+    # Detect regimes safely
+    # -----------------------------
     try:
         df, bull_state, bear_state = detect_regimes(df)
     except Exception as e:
         print(f"[get_data] Error detecting regimes: {e}")
-        return df, None, None, None
+        bull_state, bear_state = None, None
 
-    # === Run backtest safely ===
+    # -----------------------------
+    # Run backtest safely
+    # -----------------------------
     try:
         df, trades = run_backtest(df)
     except Exception as e:
         print(f"[get_data] Error running backtest: {e}")
-        trades = None
+        trades = []
 
     return df, trades, bull_state, bear_state
 
@@ -151,3 +154,4 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df)
+
