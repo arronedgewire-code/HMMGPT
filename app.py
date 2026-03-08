@@ -11,17 +11,21 @@ st.set_page_config(layout="wide")
 st.title("BTC Regime Trading Dashboard")
 
 # Load data
-@st.cache_data(ttl=3600) #cache timer?
+@st.cache_data(ttl=3600)
 def get_data():
+
     df = load_data()
+
+    if df is None or df.empty:
+        return None, None, None, None
+
     df = add_indicators(df)
+
     df, bull, bear = detect_regimes(df)
+
     df, trades = run_backtest(df)
+
     return df, trades, bull, bear
-df, trades, bull, bear = get_data()
-if df is None or df.empty:
-    st.error("Failed to download BTC data from Yahoo Finance.")
-    st.stop()
 
 # CURRENT STATUS
 latest = df.iloc[-1]
@@ -99,4 +103,5 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
+
 
