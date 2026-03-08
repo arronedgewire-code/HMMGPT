@@ -2,7 +2,7 @@
 import requests
 import pandas as pd
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
 SYMBOL = "BTCUSDT"
@@ -20,8 +20,8 @@ def fetch_btc_data(days=730, retries=5, pause=5):
         indexed by UTC datetime — same format as yfinance output.
     """
     all_candles = []
-    end_ms = int(datetime.utcnow().timestamp() * 1000)
-    start_ms = int((datetime.utcnow() - timedelta(days=days)).timestamp() * 1000)
+    end_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    start_ms = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp() * 1000)
     current_start = start_ms
 
     print(f"[data_loader] Fetching {days} days of hourly BTC data from Binance...")
@@ -35,6 +35,7 @@ def fetch_btc_data(days=730, retries=5, pause=5):
             "limit": CANDLES_PER_REQUEST,
         }
 
+        candles = []  # ensure candles is always defined before retry loop
         for attempt in range(1, retries + 1):
             try:
                 response = requests.get(BINANCE_KLINES_URL, params=params, timeout=10)
