@@ -3,6 +3,17 @@ import pandas as pd
 import numpy as np
 
 # -----------------------------
+# Safe float conversion
+# -----------------------------
+def safe_float(val):
+    """
+    Convert a scalar or single-element Series to float.
+    """
+    if isinstance(val, pd.Series):
+        return float(val.iloc[0]) if not val.empty else 0.0
+    return float(val)
+
+# -----------------------------
 # Confirmation score (Voting System)
 # -----------------------------
 def confirmation_score(row):
@@ -12,11 +23,6 @@ def confirmation_score(row):
     """
     score = 0
     try:
-        # Convert Series to scalars for safe comparison
-        def safe_float(val):
-            if isinstance(val, pd.Series):
-                return float(val.iloc[0]) if not val.empty else 0.0
-            return float(val)
         rsi = safe_float(row.get("RSI", 0))
         momentum = safe_float(row.get("Momentum", 0))
         vol = safe_float(row.get("Volatility", 0))
@@ -55,6 +61,7 @@ def run_backtest(df, starting_capital=1000, leverage=5, min_confirmations=7, coo
     df = df.copy()
     capital = starting_capital
     position = 0
+    entry_price = 0
     cooldown_until = None
     equity_curve = []
     trades = []
@@ -64,27 +71,31 @@ def run_backtest(df, starting_capital=1000, leverage=5, min_confirmations=7, coo
         time = df.index[i]
 
         # Skip during cooldown
-        if cooldown_until and time < cooldown_until:
-            equity_curve.append(capital + position * row["Close"] * leverage)
+        if cooldown_until is not None and time < cooldown_until:
+            equity_curve.append(capital + position * safe_float(row.get("Close", 0)) * leverage)
             continue
 
         # Compute voting score
         score = confirmation_score(row)
 
-        # Check regime
+        # Check regime safely
         regime = row.get("regime", "Neutral")
+        if isinstance(regime, pd.Series):
+            regime = regime.iloc[0] if not regime.empty else "Neutral"
+
+        close_price = safe_float(row.get("Close", 0))
 
         # Entry logic
         if position == 0:
             if regime == "Bull" and score >= min_confirmations:
-                position = capital / row["Close"] * leverage  # Long 5x
-                entry_price = row["Close"]
+                position = capital / close_price * leverage  # Long 5x
+                entry_price = close_price
                 trades.append({"Time": time, "Type": "BUY", "Price": entry_price})
-        
+
         # Exit logic
         elif position > 0:
             if regime in ["Bear", "Crash"]:
-                exit_price = row["Close"]
+                exit_price = close_price
                 pnl = (exit_price - entry_price) * position
                 capital += pnl
                 trades.append({"Time": time, "Type": "SELL", "Price": exit_price, "PnL": pnl})
@@ -93,10 +104,9 @@ def run_backtest(df, starting_capital=1000, leverage=5, min_confirmations=7, coo
 
         # Update equity curve
         if position > 0:
-            equity_curve.append(capital + (row["Close"] - entry_price) * position)
+            equity_curve.append(capital + (close_price - entry_price) * position)
         else:
             equity_curve.append(capital)
 
     df["Equity"] = equity_curve
     return df, trades
-
