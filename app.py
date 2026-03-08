@@ -155,19 +155,26 @@ equity_curve = df.get("Equity")
 trades_df = pd.DataFrame(trades) if trades is not None else pd.DataFrame()
 
 if equity_curve is not None and not equity_curve.empty:
-    total_return = (equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100
-    buy_hold_return = (df["Close"].iloc[-1] / df["Close"].iloc[0] - 1) * 100
-    total_return = float(total_return)
-    buy_hold_return = float(buy_hold_return)
-    alpha = float(total_return - buy_hold_return)
+    # Ensure we always work with scalars
+    try:
+        total_return = float((equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100)
+    except Exception:
+        total_return = 0.0
+
+    try:
+        buy_hold_return = float((df["Close"].iloc[-1] / df["Close"].iloc[0] - 1) * 100)
+    except Exception:
+        buy_hold_return = 0.0
+
+    alpha = total_return - buy_hold_return
 
     # Win rate
     if "PnL" in trades_df.columns and not trades_df.empty:
-        wins = trades_df[trades_df["PnL"] > 0].shape[0]
-        win_rate = (wins / trades_df.shape[0]) * 100
+        wins = trades_df["PnL"].gt(0).sum()  # number of profitable trades
+        win_rate = float((wins / trades_df.shape[0]) * 100)
     else:
         wins = 0
-        win_rate = 0
+        win_rate = 0.0
 
     # Drawdown
     drawdown = (equity_curve.cummax() - equity_curve) / equity_curve.cummax()
@@ -189,6 +196,7 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df)
+
 
 
 
