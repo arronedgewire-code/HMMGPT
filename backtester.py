@@ -54,7 +54,7 @@ def confirmation_score(row):
 # -----------------------------
 # Backtesting engine
 # -----------------------------
-def run_backtest(df, starting_capital=1000, leverage=5, min_confirmations=7, cooldown_hours=48):
+def run_backtest(df, starting_capital=1000, leverage=5, min_confirmations=6, cooldown_hours=24):
     """
     Run regime-based backtest with voting system and cooldowns.
     """
@@ -110,3 +110,4 @@ def run_backtest(df, starting_capital=1000, leverage=5, min_confirmations=7, coo
 
     df["Equity"] = equity_curve
     return df, trades
+
