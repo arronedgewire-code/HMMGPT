@@ -132,7 +132,7 @@ fig.update_layout(
     height=600
 )
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')  # replaces use_container_width=True
 
 # --------------------------------
 # Metrics
@@ -167,6 +167,7 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df)
+
 
 
 
