@@ -133,7 +133,7 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
             exit_price = close_price
             pnl = (exit_price - entry_price) * position
             capital += pnl
-            pnl_pct = (pnl / (risk_per_trade * leverage)) * 100 if (risk_per_trade * leverage) != 0 else 0.0
+            pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade != 0 else 0.0  # % return on capital risked
             trades.append({"Time": time, "Type": "SELL (Long Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%"})
             position = 0
             position_side = None
@@ -144,7 +144,7 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
             exit_price = close_price
             pnl = (entry_price - exit_price) * position  # profit when price falls
             capital += pnl
-            pnl_pct = (pnl / (risk_per_trade * leverage)) * 100 if (risk_per_trade * leverage) != 0 else 0.0
+            pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade != 0 else 0.0  # % return on capital risked
             trades.append({"Time": time, "Type": "COVER (Short Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%"})
             position = 0
             position_side = None
@@ -186,4 +186,3 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
 
     df["Equity"] = equity_curve
     return df, trades
-
