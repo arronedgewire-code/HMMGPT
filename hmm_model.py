@@ -67,7 +67,8 @@ def detect_regimes(df, n_states=3):
     bull_state = int(sorted_states[-1])
     bear_state = int(sorted_states[0])
 
-    regime_map = {bull_state: "Bull", bear_state: "Bear"}
+    # Bull = highest return state, Crash = lowest return state, Neutral = middle
+    regime_map = {bull_state: "Bull", bear_state: "Crash"}
     daily["regime"] = pd.Series(hidden_states, index=daily.index).map(
         lambda x: regime_map.get(x, "Neutral")
     )
