@@ -31,6 +31,7 @@ def confirmation_score(row):
         adx = safe_float(row.get("ADX", 0))
         close = safe_float(row.get("Close", 0))
         ema50 = safe_float(row.get("EMA50", 0))
+        ema100 = safe_float(row.get("EMA100", 0))
         ema200 = safe_float(row.get("EMA200", 0))
         macd = safe_float(row.get("MACD", 0))
         signal = safe_float(row.get("Signal", 0))
@@ -42,6 +43,7 @@ def confirmation_score(row):
             volume > volume_sma,
             adx > 25,
             close > ema50,
+            close > ema100,
             close > ema200,
             macd > signal
         ]
@@ -69,17 +71,20 @@ def bearish_confirmation_score(row):
         adx = safe_float(row.get("ADX", 0))
         close = safe_float(row.get("Close", 0))
         ema50 = safe_float(row.get("EMA50", 0))
+        ema100 = safe_float(row.get("EMA100", 0))
         ema200 = safe_float(row.get("EMA200", 0))
         macd = safe_float(row.get("MACD", 0))
         signal = safe_float(row.get("Signal", 0))
 
         conditions = [
             rsi > 70,            # overbought / exhaustion
-            momentum < -0.01,    # negative momentum
+            rsi < 60,            # in trend bears control
+            momwentum < -0.01,    # negative momentum
             vol > 0.03,          # elevated volatility (panic selling)
             volume > volume_sma, # volume surge on down move
             adx > 25,            # strong trend conviction
             close < ema50,       # price broken below ema50
+            close < ema100,      # price broken below ema200
             close < ema200,      # price broken below ema200
             macd < signal        # bearish MACD crossover
         ]
@@ -174,3 +179,4 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
 
     df["Equity"] = equity_curve
     return df, trades
+
