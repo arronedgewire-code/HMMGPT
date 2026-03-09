@@ -79,6 +79,12 @@ def get_data():
     if "Equity" not in df.columns:
         df["Equity"] = pd.Series(1.0, index=df.index)
 
+    # Convert any single-value Series to scalars to avoid formatting errors
+    #####NEW CHANGE, KNOW IF BROKEN JUST DELETE AND IT'S NOT NEEDED IG.
+    for col in df.columns:
+        if isinstance(df[col], pd.Series) and df[col].shape[1:] == (1,):
+            df[col] = df[col].squeeze()
+
     return df, trades, bull_state, bear_state
 
 # --------------------------------
@@ -132,10 +138,17 @@ fig = go.Figure(data=[go.Candlestick(
 
 colors = {"Bull": "rgba(0,255,0,0.1)", "Bear": "rgba(255,0,0,0.1)", "Crash": "rgba(255,0,0,0.2)"}
 
+# Solid marker colors per regime
+marker_colors = {"Bull": "lime", "Bear": "red", "Crash": "darkred", "Neutral": "gray"}
+
 # Draw a rectangle for each contiguous segment, not one per regime type
+# Also collect segment start points for markers
 regime_series = df["regime"].dropna()
 segment_start = regime_series.index[0]
 current_regime = regime_series.iloc[0]
+
+# Store segment starts: (timestamp, regime)
+segment_starts = [(segment_start, current_regime)]
 
 for i in range(1, len(regime_series)):
     if regime_series.iloc[i] != current_regime:
@@ -143,20 +156,60 @@ for i in range(1, len(regime_series)):
             x0=segment_start,
             x1=regime_series.index[i - 1],
             fillcolor=colors.get(current_regime, "rgba(200,200,200,0.1)"),
-            opacity=0.3,
+            opacity=0.4,
             line_width=0
         )
         segment_start = regime_series.index[i]
         current_regime = regime_series.iloc[i]
+        segment_starts.append((segment_start, current_regime))
 
 # Draw the final segment
 fig.add_vrect(
     x0=segment_start,
     x1=regime_series.index[-1],
     fillcolor=colors.get(current_regime, "rgba(200,200,200,0.1)"),
-    opacity=0.3,
+    opacity=0.4,
     line_width=0
 )
+
+# --- Regime change markers ---
+# Bull: triangle-up below the candle low
+# Bear/Crash: triangle-down above the candle high
+# Neutral: diamond at close price
+for regime in ["Bull", "Bear", "Crash", "Neutral"]:
+    timestamps = [ts for ts, r in segment_starts if r == regime]
+    if not timestamps:
+        continue
+
+    if regime == "Bull":
+        prices = [df.loc[ts, "Low"] * 0.997 if ts in df.index else None for ts in timestamps]
+        symbol = "triangle-up"
+    elif regime in ["Bear", "Crash"]:
+        prices = [df.loc[ts, "High"] * 1.003 if ts in df.index else None for ts in timestamps]
+        symbol = "triangle-down"
+    else:
+        prices = [df.loc[ts, "Close"] if ts in df.index else None for ts in timestamps]
+        symbol = "diamond"
+
+    valid = [(ts, p) for ts, p in zip(timestamps, prices) if p is not None]
+    if not valid:
+        continue
+
+    x_vals, y_vals = zip(*valid)
+
+    fig.add_trace(go.Scatter(
+        x=list(x_vals),
+        y=list(y_vals),
+        mode="markers",
+        marker=dict(
+            symbol=symbol,
+            size=10,
+            color=marker_colors.get(regime, "gray"),
+            line=dict(width=1, color="white")
+        ),
+        name=f"{regime} Signal",
+        hovertemplate=f"<b>{regime} Regime Start</b><br>%{{x}}<extra></extra>"
+    ))
 
 fig.update_layout(
     xaxis_rangeslider_visible=False,
@@ -164,7 +217,7 @@ fig.update_layout(
     height=600
 )
 
-st.plotly_chart(fig, width='stretch')
+st.plotly_chart(fig, width='stretch')  # replaces use_container_width=True
 
 # --------------------------------
 # Metrics
@@ -215,3 +268,4 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df)
+
