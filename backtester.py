@@ -77,8 +77,9 @@ def bearish_confirmation_score(row):
         signal = safe_float(row.get("Signal", 0))
 
         conditions = [
-            (rsi > 70 or rsi < 60),  # overbought exhaustion OR bears in control
-            momentum < -0.01,    # negative momentum
+            rsi > 70,            # overbought / exhaustion
+            rsi < 60,            # in trend bears control
+            momwentum < -0.01,    # negative momentum
             vol > 0.03,          # elevated volatility (panic selling)
             volume > volume_sma, # volume surge on down move
             adx > 25,            # strong trend conviction
@@ -99,9 +100,10 @@ def bearish_confirmation_score(row):
 def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, short_min_confirmations=6, cooldown_hours=12):
     """
     Run regime-based backtest with long and short positions.
-    - Long: entered on Bull regime with >= min_confirmations, exits on Bear or Crash
+    # Initial capital: $1000 | Leverage: 15x | Risk per trade: 1% of current capital (dynamic)
+    - Long: entered on Bull regime with >= min_confirmations, exits on Crash
     - Short: entered on Crash regime with >= short_min_confirmations, exits only on Bull
-    - Bear regime: no new positions, holds any existing short
+    - Neutral regime: no new positions
     - Cooldown only applies to long re-entries, not short -> long transitions
     """
     df = df.copy()
@@ -154,19 +156,21 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
             if regime == "Bull" and not in_cooldown:
                 score = confirmation_score(row)
                 if score >= min_confirmations:
-                    position = capital / close_price * leverage
+                    risk_per_trade = capital * 0.01  # 1% of current capital
+                    position = (risk_per_trade * leverage) / close_price
                     entry_price = close_price
                     position_side = "long"
-                    trades.append({"Time": time, "Type": "BUY (Long)", "Price": entry_price})
+                    trades.append({"Time": time, "Type": "BUY (Long)", "Price": round(entry_price, 2), "Risk ($)": round(risk_per_trade, 2)})
 
             # Short entry: Crash regime, bearish confirmations
             elif regime == "Crash":
                 score = bearish_confirmation_score(row)
                 if score >= short_min_confirmations:
-                    position = capital / close_price * leverage
+                    risk_per_trade = capital * 0.01  # 1% of current capital
+                    position = (risk_per_trade * leverage) / close_price
                     entry_price = close_price
                     position_side = "short"
-                    trades.append({"Time": time, "Type": "SELL SHORT", "Price": entry_price})
+                    trades.append({"Time": time, "Type": "SELL SHORT", "Price": round(entry_price, 2), "Risk ($)": round(risk_per_trade, 2)})
 
         # --- Equity curve update ---
         if position_side == "long":
