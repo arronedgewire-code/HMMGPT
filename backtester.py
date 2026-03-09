@@ -78,7 +78,7 @@ def bearish_confirmation_score(row):
 
         conditions = [
             (rsi > 70 or rsi < 60),  # overbought exhaustion OR bears in control
-            momwentum < -0.01,    # negative momentum
+            momentum < -0.01,    # negative momentum
             vol > 0.03,          # elevated volatility (panic selling)
             volume > volume_sma, # volume surge on down move
             adx > 25,            # strong trend conviction
@@ -186,3 +186,4 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
 
     df["Equity"] = equity_curve
     return df, trades
+
