@@ -275,7 +275,7 @@ st.subheader("Trade Log")
 if trades_df.empty:
     st.write("No trades executed yet.")
 else:
-    st.dataframe(trades_df, use_container_width=True)
+    st.dataframe(trades_df, width='stretch')
 
     # Total PnL summary — bottom right
     if "PnL ($)" in trades_df.columns:
@@ -290,5 +290,6 @@ else:
                 f"</div>",
                 unsafe_allow_html=True
             )
+
 
 
