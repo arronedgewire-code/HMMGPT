@@ -41,6 +41,7 @@ def add_indicators(df):
     # EMA indicators
     # -----------------------------
     df["EMA50"] = close.ewm(span=50, adjust=False).mean()
+    df["EMA100"] = close.ewm(span=100, adjust=False).mean()
     df["EMA200"] = close.ewm(span=200, adjust=False).mean()
 
     # -----------------------------
