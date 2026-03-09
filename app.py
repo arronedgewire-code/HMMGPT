@@ -81,12 +81,6 @@ def get_data():
     if "Equity" not in df.columns:
         df["Equity"] = pd.Series(1.0, index=df.index)
 
-    # Convert any single-value Series to scalars to avoid formatting errors
-    #####NEW CHANGE, KNOW IF BROKEN JUST DELETE AND IT'S NOT NEEDED IG.
-    for col in df.columns:
-        if isinstance(df[col], pd.Series) and df[col].shape[1:] == (1,):
-            df[col] = df[col].squeeze()
-
     return df, trades, bull_state, bear_state
 
 # --------------------------------
