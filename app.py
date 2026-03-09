@@ -81,6 +81,12 @@ def get_data():
     if "Equity" not in df.columns:
         df["Equity"] = pd.Series(1.0, index=df.index)
 
+    # Convert any single-value Series to scalars to avoid formatting errors
+    #####NEW CHANGE, KNOW IF BROKEN JUST DELETE AND IT'S NOT NEEDED IG.
+    for col in df.columns:
+        if isinstance(df[col], pd.Series) and df[col].shape[1:] == (1,):
+            df[col] = df[col].squeeze()
+
     return df, trades, bull_state, bear_state
 
 # --------------------------------
@@ -269,6 +275,20 @@ st.subheader("Trade Log")
 if trades_df.empty:
     st.write("No trades executed yet.")
 else:
-    st.dataframe(trades_df)
+    st.dataframe(trades_df, use_container_width=True)
+
+    # Total PnL summary — bottom right
+    if "PnL ($)" in trades_df.columns:
+        total_pnl = trades_df["PnL ($)"].sum()
+        pnl_color = "#28a745" if total_pnl >= 0 else "#dc3545"
+        col_spacer, col_total = st.columns([3, 1])
+        with col_total:
+            st.markdown(
+                f"<div style='text-align:right; padding:0.5rem 0'>"
+                f"<span style='color:gray; font-size:0.85rem'>TOTAL PnL</span><br>"
+                f"<span style='color:{pnl_color}; font-size:1.3rem; font-weight:bold'>${total_pnl:+.2f}</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
 
 
