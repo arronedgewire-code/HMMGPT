@@ -118,8 +118,15 @@ elif regime_value == "Crash":
 else:
     signal = "CASH"
 
-banner = st.success if signal == "LONG" else st.error if signal == "SHORT" else st.warning
-banner(f"**{signal}** — Regime: {regime_value}")
+banner_color = "#28a745" if signal == "LONG" else "#dc3545" if signal == "SHORT" else "#fd7e14"
+
+st.markdown(f"""
+    <div style="background-color:{banner_color}22; border-left:5px solid {banner_color};
+                padding:1rem 1.5rem; border-radius:4px; margin-bottom:1rem">
+        <span style="color:{banner_color}; font-size:1.8rem; font-weight:bold">{signal}</span>
+        <span style="color:#ccc; font-size:1.2rem"> &mdash; Regime: {regime_value}</span>
+    </div>
+""", unsafe_allow_html=True)
 
 # --------------------------------
 # Plotly Candlestick Chart with Regimes
