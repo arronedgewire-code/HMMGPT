@@ -78,7 +78,7 @@ def bearish_confirmation_score(row):
 
         conditions = [
             (rsi > 70 or rsi < 60),  # overbought exhaustion OR bears in control
-            momentum < -0.01,    # negative momentum
+            momwentum < -0.01,    # negative momentum
             vol > 0.03,          # elevated volatility (panic selling)
             volume > volume_sma, # volume surge on down move
             adx > 25,            # strong trend conviction
@@ -162,7 +162,8 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
                     position = (risk_per_trade * leverage) / close_price
                     entry_price = close_price
                     position_side = "long"
-                    trades.append({"Time": time, "Type": "BUY (Long)", "Price": round(entry_price, 2), "Risk ($)": round(risk_per_trade, 2)})
+                    notional = risk_per_trade * leverage
+                    trades.append({"Time": time, "Type": "BUY (Long)", "Price": round(entry_price, 2), "Risk ($)": round(risk_per_trade, 2), "Notional ($)": f"x{leverage} = ${notional:.2f}"})
 
             # Short entry: Crash regime, bearish confirmations
             elif regime == "Crash":
@@ -172,7 +173,8 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
                     position = (risk_per_trade * leverage) / close_price
                     entry_price = close_price
                     position_side = "short"
-                    trades.append({"Time": time, "Type": "SELL SHORT", "Price": round(entry_price, 2), "Risk ($)": round(risk_per_trade, 2)})
+                    notional = risk_per_trade * leverage
+                    trades.append({"Time": time, "Type": "SELL SHORT", "Price": round(entry_price, 2), "Risk ($)": round(risk_per_trade, 2), "Notional ($)": f"x{leverage} = ${notional:.2f}"})
 
         # --- Equity curve update ---
         if position_side == "long":
