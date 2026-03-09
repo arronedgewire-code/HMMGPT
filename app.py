@@ -16,7 +16,6 @@ st.title("Regime-Based Trading Bot Dashboard")
 st.divider()
 st.subheader("strategy building, it is not ready yet")
 st.divider()
-st.markdown("<br><br>", unsafe_allow_html=True)
 # --------------------------------
 # Fetch Data (robust)
 # --------------------------------
@@ -277,4 +276,5 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df)
+
 
