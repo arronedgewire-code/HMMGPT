@@ -79,7 +79,7 @@ def bearish_confirmation_score(row):
         conditions = [
             rsi > 70,            # overbought / exhaustion
             rsi < 60,            # in trend bears control
-            momentum < -0.01,    # negative momentum
+            momwentum < -0.01,    # negative momentum
             vol > 0.03,          # elevated volatility (panic selling)
             volume > volume_sma, # volume surge on down move
             adx > 25,            # strong trend conviction
@@ -108,6 +108,7 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
     """
     df = df.copy()
     capital = starting_capital
+    risk_per_trade = capital * 0.01  # initialised here, updated dynamically on each entry
     position = 0          # size of position (always positive)
     position_side = None  # "long" or "short"
     entry_price = 0
@@ -133,7 +134,8 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
             exit_price = close_price
             pnl = (exit_price - entry_price) * position
             capital += pnl
-            trades.append({"Time": time, "Type": "SELL (Long Exit)", "Price": exit_price, "PnL": round(pnl, 2)})
+            pnl_pct = (pnl / (risk_per_trade * leverage)) * 100 if (risk_per_trade * leverage) != 0 else 0.0
+            trades.append({"Time": time, "Type": "SELL (Long Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%"})
             position = 0
             position_side = None
             cooldown_until = time + pd.Timedelta(hours=cooldown_hours)
@@ -143,7 +145,8 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
             exit_price = close_price
             pnl = (entry_price - exit_price) * position  # profit when price falls
             capital += pnl
-            trades.append({"Time": time, "Type": "COVER (Short Exit)", "Price": exit_price, "PnL": round(pnl, 2)})
+            pnl_pct = (pnl / (risk_per_trade * leverage)) * 100 if (risk_per_trade * leverage) != 0 else 0.0
+            trades.append({"Time": time, "Type": "COVER (Short Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%"})
             position = 0
             position_side = None
             # No cooldown on short -> long transition so Bull entry can fire immediately
@@ -182,5 +185,4 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
 
     df["Equity"] = equity_curve
     return df, trades
-
 
