@@ -118,21 +118,8 @@ elif regime_value == "Crash":
 else:
     signal = "CASH"
 
-signal_color = "green" if signal == "LONG" else "red" if signal == "SHORT" else "orange"
-regime_color = "green" if regime_value == "Bull" else "red" if regime_value in ["Bear", "Crash"] else "gray"
-
-st.markdown(f"""
-    <div style="display:flex; gap:2rem; padding:1rem 0">
-        <div>
-            <span style="color:gray; font-size:0.85rem">DETECTED REGIME</span><br>
-            <span style="color:{regime_color}; font-size:1.5rem; font-weight:bold">{regime_value}</span>
-        </div>
-        <div>
-            <span style="color:gray; font-size:0.85rem">TRADING SIGNAL</span><br>
-            <span style="color:{signal_color}; font-size:1.5rem; font-weight:bold">{signal}</span>
-        </div>
-    </div>
-""", unsafe_allow_html=True)
+banner = st.success if signal == "LONG" else st.error if signal == "SHORT" else st.warning
+banner(f"**{signal}** — Regime: {regime_value}")
 
 # --------------------------------
 # Plotly Candlestick Chart with Regimes
