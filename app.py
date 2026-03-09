@@ -81,12 +81,6 @@ def get_data():
     if "Equity" not in df.columns:
         df["Equity"] = pd.Series(1.0, index=df.index)
 
-    # Convert any single-value Series to scalars to avoid formatting errors
-    #####NEW CHANGE, KNOW IF BROKEN JUST DELETE AND IT'S NOT NEEDED IG.
-    for col in df.columns:
-        if isinstance(df[col], pd.Series) and df[col].shape[1:] == (1,):
-            df[col] = df[col].squeeze()
-
     return df, trades, bull_state, bear_state
 
 # --------------------------------
@@ -248,10 +242,10 @@ if equity_curve is not None and not equity_curve.empty:
 
     alpha = total_return - buy_hold_return
 
-    # Win rate — only count exit rows that carry a PnL value
-    if "PnL" in trades_df.columns and not trades_df.empty:
-        pnl_trades = trades_df[trades_df["PnL"].notna()]
-        win_rate = float((pnl_trades["PnL"].gt(0).sum() / len(pnl_trades)) * 100) if len(pnl_trades) > 0 else 0.0
+    # Win rate — only count exit rows that carry a PnL ($) value
+    if "PnL ($)" in trades_df.columns and not trades_df.empty:
+        pnl_trades = trades_df[trades_df["PnL ($)"].notna()]
+        win_rate = float((pnl_trades["PnL ($)"].gt(0).sum() / len(pnl_trades)) * 100) if len(pnl_trades) > 0 else 0.0
     else:
         win_rate = 0.0
 
@@ -290,6 +284,3 @@ else:
                 f"</div>",
                 unsafe_allow_html=True
             )
-
-
-
