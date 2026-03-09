@@ -77,8 +77,7 @@ def bearish_confirmation_score(row):
         signal = safe_float(row.get("Signal", 0))
 
         conditions = [
-            rsi > 70,            # overbought / exhaustion
-            rsi < 60,            # in trend bears control
+            (rsi > 70 or rsi < 60),  # overbought exhaustion OR bears in control
             momentum < -0.01,    # negative momentum
             vol > 0.03,          # elevated volatility (panic selling)
             volume > volume_sma, # volume surge on down move
@@ -185,5 +184,3 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
 
     df["Equity"] = equity_curve
     return df, trades
-
-
