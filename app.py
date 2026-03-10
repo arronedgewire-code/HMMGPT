@@ -11,8 +11,22 @@ from streamlit_option_menu import option_menu
 
 # --------------------------------
 # Streamlit Page Setup
-# --------------------------------
+# --------------------------------    
 st.set_page_config(page_title="Regime-Based Trading Bot", layout="wide")
+selected = option_menu(
+    menu_title=Regime-Based Trading Bot,
+    options=["Dashboard", "Backtest", "Analytics", "Settings"],
+    icons=["bar-chart", "activity", "graph-up", "gear"],
+    orientation="horizontal",
+)
+#if selected == "Dashboard":
+    #show_dashboard()
+#elif selected == "Backtest":
+#show_backtest()
+#elif selected == "Analytics":
+#    show_analytics()
+#elif selected == "Settings":
+#    show_settings()
 st.title("Regime-Based Trading Bot Dashboard")
 
 st.markdown("""
@@ -25,22 +39,6 @@ font-size:1.05rem'>
 </div>
 """, unsafe_allow_html=True)
 
-
-
-selected = option_menu(
-    menu_title=None,
-    options=["Dashboard", "Backtest", "Analytics", "Settings"],
-    icons=["bar-chart", "activity", "graph-up", "gear"],
-    orientation="horizontal",
-)
-if selected == "Dashboard":
-    #show_dashboard()
-elif selected == "Backtest":
-    show_backtest()
-elif selected == "Analytics":
-    show_analytics()
-elif selected == "Settings":
-    show_settings()
 # --------------------------------
 # Fetch Data (robust)
 # --------------------------------
@@ -365,6 +363,7 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
+
 
 
 
