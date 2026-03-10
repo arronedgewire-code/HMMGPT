@@ -96,10 +96,10 @@ def bearish_confirmation_score(row):
 # -----------------------------
 # Backtesting engine
 # -----------------------------
-def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, short_min_confirmations=6, cooldown_hours=12):
+def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, short_min_confirmations=6, cooldown_hours=12):
     """
     Run regime-based backtest with long and short positions.
-    # Initial capital: $1000 | Leverage: 15x | Risk per trade: 1% of current capital (dynamic)
+    # Initial capital: $1000 | Leverage: 25x | Risk per trade: 2% of current capital (dynamic)
     - Long: entered on Bull regime with >= min_confirmations, exits on Crash
     - Short: entered on Crash regime with >= short_min_confirmations, exits only on Bull
     - Neutral regime: no new positions
@@ -107,7 +107,7 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
     """
     df = df.copy()
     capital = starting_capital
-    risk_per_trade = capital * 0.01  # initialised here, updated dynamically on each entry
+    risk_per_trade = capital * 0.02  # initialised here, updated dynamically on each entry
     position = 0          # size of position (always positive)
     position_side = None  # "long" or "short"
     entry_price = 0
@@ -158,7 +158,7 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
             if regime == "Bull" and not in_cooldown:
                 score = confirmation_score(row)
                 if score >= min_confirmations:
-                    risk_per_trade = capital * 0.01  # 1% of current capital
+                    risk_per_trade = capital * 0.02  # 2% of current capital
                     position = (risk_per_trade * leverage) / close_price
                     entry_price = close_price
                     position_side = "long"
@@ -169,7 +169,7 @@ def run_backtest(df, starting_capital=1000, leverage=15, min_confirmations=6, sh
             elif regime == "Crash":
                 score = bearish_confirmation_score(row)
                 if score >= short_min_confirmations:
-                    risk_per_trade = capital * 0.01  # 1% of current capital
+                    risk_per_trade = capital * 0.02  # 2% of current capital
                     position = (risk_per_trade * leverage) / close_price
                     entry_price = close_price
                     position_side = "short"
