@@ -278,7 +278,6 @@ else:
 # --------------------------------
 tl_col1, tl_col2 = st.columns([3, 1])
 with tl_col1:
-    st.subheader("Trade Log")
 st.markdown(
     """
     <div style='padding:0.4rem 0; margin-top:-0.4rem; line-height:1.4'>
@@ -293,6 +292,8 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+    st.subheader("Trade Log")
+
 with tl_col2:
     if not trades_df.empty and "PnL ($)" in trades_df.columns:
         total_pnl = trades_df["PnL ($)"].sum()
@@ -309,5 +310,6 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width='stretch')
+
 
 
