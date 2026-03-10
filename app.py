@@ -277,39 +277,43 @@ else:
 # Trades Log
 # --------------------------------
 tl_col1, tl_col2 = st.columns([3, 1])
+
 with tl_col1:
-st.markdown(
-    """
-    <div style='padding:0.4rem 0; margin-top:-0.4rem; line-height:1.4'>
-        <span style='color:gray; font-size:0.85rem'>BACKTEST ASSUMPTIONS</span><br>
-        <span style='font-size:0.9rem'>
-        Starting capital: <b>$1,000</b> • Risk per trade: <b>2% of current balance</b> (dynamic position sizing).<br>
-        Leverage: <b>25×</b> to allow profitable trades to run while maintaining controlled risk.<br>
-        Note: <b>No stop losses</b> were used in this backtest.<br>
-        Strategy: The HMM model trades through the full duration of each detected regime.
-        </span>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
     st.subheader("Trade Log")
+
+    st.markdown(
+        """
+        <div style='padding:0.35rem 0; margin-top:-0.2rem; line-height:1.45'>
+            <span style='color:gray; font-size:0.80rem'>BACKTEST ASSUMPTIONS</span><br>
+            <span style='font-size:0.9rem'>
+            Starting capital: <b>$1,000</b> • Risk per trade: <b>2% of current balance</b> (dynamic position sizing).<br>
+            Leverage: <b>25×</b> to allow profitable trades to run while maintaining controlled risk.<br>
+            Note: <b>No stop losses</b> were used in this backtest.<br>
+            Strategy: The HMM model trades through the full duration of each detected regime.
+            </span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 with tl_col2:
     if not trades_df.empty and "PnL ($)" in trades_df.columns:
         total_pnl = trades_df["PnL ($)"].sum()
         pnl_color = "#28a745" if total_pnl >= 0 else "#dc3545"
+
         st.markdown(
-            f"<div style='text-align:right; padding:0.5rem 0; margin-top:0.5rem'>"
-            f"<span style='color:gray; font-size:0.85rem'>TOTAL PnL</span><br>"
-            f"<span style='color:{pnl_color}; font-size:1.3rem; font-weight:bold'>${total_pnl:+.2f}</span>"
-            f"</div>",
+            f"""
+            <div style='text-align:right; padding:0.5rem 0; margin-top:1.8rem'>
+                <span style='color:gray; font-size:0.85rem'>TOTAL PnL</span><br>
+                <span style='color:{pnl_color}; font-size:1.3rem; font-weight:bold'>
+                ${total_pnl:+.2f}
+                </span>
+            </div>
+            """,
             unsafe_allow_html=True
         )
 
 if trades_df.empty:
     st.write("No trades executed yet.")
 else:
-    st.dataframe(trades_df, width='stretch')
-
-
-
+    st.dataframe(trades_df, width="stretch")
