@@ -34,7 +34,7 @@ selected = option_menu(
     orientation="horizontal",
 )
 if selected == "Dashboard":
-    show_dashboard()
+    #show_dashboard()
 elif selected == "Backtest":
     show_backtest()
 elif selected == "Analytics":
@@ -365,6 +365,7 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
+
 
 
 
