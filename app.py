@@ -227,11 +227,32 @@ for regime in ["Bull", "Bear", "Crash", "Neutral"]:
         hovertemplate=f"<b>{regime} Regime Start</b><br>%{{x}}<extra></extra>"
     ))
 
+# Default view: last 3 months
+end_date = df.index[-1]
+start_3m = end_date - pd.DateOffset(months=3)
+
 fig.update_layout(
-    xaxis_rangeslider_visible=False,
+    xaxis=dict(
+        rangeslider_visible=False,
+        range=[start_3m, end_date],
+        rangeselector=dict(
+            buttons=[
+                dict(count=7,  label="1W", step="day",   stepmode="backward"),
+                dict(count=1,  label="1M", step="month", stepmode="backward"),
+                dict(count=3,  label="3M", step="month", stepmode="backward"),
+                dict(count=1,  label="YTD", step="year", stepmode="todate"),
+                dict(count=1,  label="1Y", step="year",  stepmode="backward"),
+                dict(step="all", label="2Y"),
+            ],
+            bgcolor="#1e1e1e",
+            activecolor="#444",
+            font=dict(color="white", size=12),
+            x=0, y=1.02
+        )
+    ),
     template="plotly_dark",
     height=520,
-    margin=dict(t=10, b=10, l=50, r=10)
+    margin=dict(t=40, b=10, l=50, r=10)
 )
 
 st.plotly_chart(fig, width='stretch')  # replaces use_container_width=True
@@ -443,4 +464,3 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
-
