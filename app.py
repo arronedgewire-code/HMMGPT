@@ -339,11 +339,11 @@ if equity_curve is not None and not equity_curve.empty:
     # Row 1 — Performance
     st.caption("PERFORMANCE")
     col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Total Return (%)", f"{total_return:.2f}")
-    col2.metric("Alpha vs Buy & Hold (%)", f"{alpha:.2f}")
-    col3.metric("Win Rate (%)", f"{win_rate:.2f}")
-    col4.metric("Max Drawdown — 2% Risk ($)", f"${max_drawdown_dollar:.2f}")
-    col5.metric("Max Win — 2% Risk ($)", f"${max_win_dollar:.2f}")
+    col1.metric("Total Return", f"{total_return:.2f}%")
+    col2.metric("Alpha vs B&H", f"{alpha:.2f}%")
+    col3.metric("Win Rate", f"{win_rate:.2f}%")
+    col4.metric("Max Drawdown", f"${max_drawdown_dollar:.2f}")
+    col5.metric("Max Win", f"${max_win_dollar:.2f}")
 
     st.divider()
 
@@ -363,9 +363,9 @@ if equity_curve is not None and not equity_curve.empty:
     r1, r2, r3, r4, r5 = st.columns(5)
     r1.metric("Total Trades", total_trades)
     r2.metric("Max Consec. Losses", max_consec_losses)
-    r3.metric("Long Win Rate (%)", f"{long_win_rate:.2f}%")
-    r4.metric("Short Win Rate (%)", f"{short_win_rate:.2f}%")
-    r5.metric("Long / Short Avg Win (%)", f"{long_avg_win_pct:+.2f}% / {short_avg_win_pct:+.2f}%")
+    r3.metric("Long Win Rate", f"{long_win_rate:.2f}%")
+    r4.metric("Short Win Rate", f"{short_win_rate:.2f}%")
+    r5.metric("L/S Avg Win", f"{long_avg_win_pct:+.2f}% / {short_avg_win_pct:+.2f}%")
 else:
     st.write("No backtest equity curve available.")
 
