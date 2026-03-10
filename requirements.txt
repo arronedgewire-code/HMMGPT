@@ -2,9 +2,9 @@ streamlit
 pandas
 numpy
 plotly
+yfinance
 requests
 hmmlearn
 ta
 streamlit_option_menu
 scikit-learn
-
