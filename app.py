@@ -235,26 +235,6 @@ fig.update_layout(
 
 st.plotly_chart(fig, width='stretch')  # replaces use_container_width=True
 
-#---------------------------------
-# Plotly Equity Curve
-#---------------------------------
-st.subheader("Equity Curve")
-fig_eq = go.Figure()
-fig_eq.add_trace(go.Scatter(
-    x=equity_curve.index,
-    y=equity_curve.values,
-    mode="lines",
-    name="Equity",
-    line=dict(color="#28a745", width=2)
-))
-fig_eq.update_layout(
-    template="plotly_dark",
-    height=300,
-    yaxis_title="Capital ($)",
-    showlegend=False
-)
-st.plotly_chart(fig_eq, width='stretch')
-
 # --------------------------------
 # Metrics
 # --------------------------------
@@ -262,6 +242,27 @@ st.subheader("Backtest Metrics")
 
 equity_curve = df.get("Equity")
 trades_df = pd.DataFrame(trades) if trades is not None else pd.DataFrame()
+
+#---------------------------------
+# Plotly Equity Curve
+#---------------------------------
+if equity_curve is not None and not equity_curve.empty:
+    st.subheader("Equity Curve")
+    fig_eq = go.Figure()
+    fig_eq.add_trace(go.Scatter(
+        x=equity_curve.index,
+        y=equity_curve.values,
+        mode="lines",
+        name="Equity",
+        line=dict(color="#28a745", width=2)
+    ))
+    fig_eq.update_layout(
+        template="plotly_dark",
+        height=300,
+        yaxis_title="Capital ($)",
+        showlegend=False
+    )
+    st.plotly_chart(fig_eq, width='stretch')
 
 if equity_curve is not None and not equity_curve.empty:
     try:
@@ -368,11 +369,3 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
-
-
-
-
-
-
-
-
