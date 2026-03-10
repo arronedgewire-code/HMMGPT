@@ -264,6 +264,9 @@ if equity_curve is not None and not equity_curve.empty:
 # --------------------------------
 st.subheader("Backtest Metrics")
 
+equity_curve = df.get("Equity")
+trades_df = pd.DataFrame(trades) if trades is not None else pd.DataFrame()
+
 if equity_curve is not None and not equity_curve.empty:
     try:
         total_return = float((equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100)
@@ -292,7 +295,7 @@ if equity_curve is not None and not equity_curve.empty:
     max_drawdown_dollar = float((equity_curve.cummax() - equity_curve).max())
     max_drawdown = (max_drawdown_dollar / risk_baseline) * 100 if risk_baseline != 0 else 0.0
 
-    # avg win/loss - gross profit, gross loss - profit factor - total - trades - expectancy
+    # avg win/loss - gross profit, gross loss - profit factor - total trades
     wins = trades_df[trades_df["PnL ($)"] > 0]
     losses = trades_df[trades_df["PnL ($)"] < 0]
     avg_win = wins["PnL ($)"].mean() if not wins.empty else 0
@@ -301,11 +304,35 @@ if equity_curve is not None and not equity_curve.empty:
     gross_loss = abs(losses["PnL ($)"].sum())
     profit_factor = gross_profit / gross_loss if gross_loss != 0 else 0
     total_trades = len(wins) + len(losses)
-    expectancy = trades_df["PnL ($)"].mean() if total_trades > 0 else 0
+    win_loss_ratio = avg_win / abs(avg_loss) if avg_loss != 0 else 0
 
-    
-    # Display metrics in a single row
+    # Max consecutive losses
+    pnl_series = trades_df["PnL ($)"].dropna()
+    max_consec_losses = 0
+    current_consec = 0
+    for val in pnl_series:
+        if val < 0:
+            current_consec += 1
+            max_consec_losses = max(max_consec_losses, current_consec)
+        else:
+            current_consec = 0
+
+    # Long vs Short breakdown
+    long_exits = trades_df[trades_df["Type"] == "SELL (Long Exit)"]
+    short_exits = trades_df[trades_df["Type"] == "COVER (Short Exit)"]
+    long_win_rate = float((long_exits["PnL ($)"].gt(0).sum() / len(long_exits)) * 100) if len(long_exits) > 0 else 0.0
+    short_win_rate = float((short_exits["PnL ($)"].gt(0).sum() / len(short_exits)) * 100) if len(short_exits) > 0 else 0.0
+    long_avg_win = long_exits[long_exits["PnL ($)"] > 0]["PnL ($)"].mean() if not long_exits.empty else 0
+    short_avg_win = short_exits[short_exits["PnL ($)"] > 0]["PnL ($)"].mean() if not short_exits.empty else 0
+    long_avg_loss = long_exits[long_exits["PnL ($)"] < 0]["PnL ($)"].mean() if not long_exits.empty else 0
+    short_avg_loss = short_exits[short_exits["PnL ($)"] < 0]["PnL ($)"].mean() if not short_exits.empty else 0
+
+    # Sharpe ratio (annualised from hourly equity curve)
+    eq_returns = equity_curve.pct_change().dropna()
+    sharpe = float((eq_returns.mean() / eq_returns.std()) * (24 * 365) ** 0.5) if eq_returns.std() != 0 else 0.0
+
     # Row 1 — Performance
+    st.caption("PERFORMANCE")
     col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Total Return (%)", f"{total_return:.2f}")
     col2.metric("Alpha vs Buy & Hold (%)", f"{alpha:.2f}")
@@ -316,12 +343,24 @@ if equity_curve is not None and not equity_curve.empty:
     st.divider()
 
     # Row 2 — Trade Quality
+    st.caption("TRADE QUALITY")
     q1, q2, q3, q4, q5 = st.columns(5)
     q1.metric("Avg Win ($)", f"${avg_win:.2f}")
-    q2.metric("Avg Loss ($)", f"${avg_loss:.2f}")
+    q2.metric("Avg Loss ($)", f"${abs(avg_loss):.2f}")
     q3.metric("Profit Factor", f"{profit_factor:.2f}")
-    q4.metric("Expectancy ($)", f"${expectancy:.2f}")
-    q5.metric("Total Trades", total_trades)
+    q4.metric("Win / Loss Ratio", f"{win_loss_ratio:.2f}")
+    q5.metric("Sharpe Ratio", f"{sharpe:.2f}")
+
+    st.divider()
+
+    # Row 3 — Risk & Breakdown
+    st.caption("RISK & BREAKDOWN")
+    r1, r2, r3, r4, r5 = st.columns(5)
+    r1.metric("Total Trades", total_trades)
+    r2.metric("Max Consec. Losses", max_consec_losses)
+    r3.metric("Long Win Rate (%)", f"{long_win_rate:.2f}")
+    r4.metric("Short Win Rate (%)", f"{short_win_rate:.2f}")
+    r5.metric("Long Avg Win / Short Avg Win", f"${long_avg_win:.2f} / ${short_avg_win:.2f}")
 else:
     st.write("No backtest equity curve available.")
 
@@ -369,3 +408,4 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
+
