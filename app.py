@@ -279,6 +279,12 @@ else:
 tl_col1, tl_col2 = st.columns([3, 1])
 with tl_col1:
     st.subheader("Trade Log")
+    st.caption(
+        "Backtest assumptions: Starting capital **$1,000**."
+        "Starting capital: $1,000 • Risk per trade: 2% of current balance (dynamic position sizing)."
+        "x25 leverage to let winners fly and implement a comfortable stop loss.(currently 0 stop losses where used in this backtest.)"
+        "the strategy of this HMM is to trade through the entirety of each regime."
+    )
 with tl_col2:
     if not trades_df.empty and "PnL ($)" in trades_df.columns:
         total_pnl = trades_df["PnL ($)"].sum()
@@ -295,3 +301,4 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width='stretch')
+
