@@ -230,7 +230,8 @@ for regime in ["Bull", "Bear", "Crash", "Neutral"]:
 fig.update_layout(
     xaxis_rangeslider_visible=False,
     template="plotly_dark",
-    height=600
+    height=520,
+    margin=dict(t=10, b=10, l=50, r=10)
 )
 
 st.plotly_chart(fig, width='stretch')  # replaces use_container_width=True
@@ -253,9 +254,10 @@ if equity_curve is not None and not equity_curve.empty:
     ))
     fig_eq.update_layout(
         template="plotly_dark",
-        height=300,
+        height=380,
         yaxis_title="Capital ($)",
-        showlegend=False
+        showlegend=False,
+        margin=dict(t=10, b=10, l=50, r=10)
     )
     st.plotly_chart(fig_eq, width='stretch')
 
@@ -322,10 +324,13 @@ if equity_curve is not None and not equity_curve.empty:
     short_exits = trades_df[trades_df["Type"] == "COVER (Short Exit)"]
     long_win_rate = float((long_exits["PnL ($)"].gt(0).sum() / len(long_exits)) * 100) if len(long_exits) > 0 else 0.0
     short_win_rate = float((short_exits["PnL ($)"].gt(0).sum() / len(short_exits)) * 100) if len(short_exits) > 0 else 0.0
-    long_avg_win = long_exits[long_exits["PnL ($)"] > 0]["PnL ($)"].mean() if not long_exits.empty else 0
-    short_avg_win = short_exits[short_exits["PnL ($)"] > 0]["PnL ($)"].mean() if not short_exits.empty else 0
-    long_avg_loss = long_exits[long_exits["PnL ($)"] < 0]["PnL ($)"].mean() if not long_exits.empty else 0
-    short_avg_loss = short_exits[short_exits["PnL ($)"] < 0]["PnL ($)"].mean() if not short_exits.empty else 0
+    def pct_to_float(series):
+        return series.dropna().apply(lambda x: float(str(x).replace("%", "")))
+
+    long_wins_pct = pct_to_float(long_exits[long_exits["PnL ($)"] > 0]["PnL (%)"])
+    short_wins_pct = pct_to_float(short_exits[short_exits["PnL ($)"] > 0]["PnL (%)"])
+    long_avg_win_pct = long_wins_pct.mean() if len(long_wins_pct) > 0 else 0.0
+    short_avg_win_pct = short_wins_pct.mean() if len(short_wins_pct) > 0 else 0.0
 
     # Sharpe ratio (annualised from hourly equity curve)
     eq_returns = equity_curve.pct_change().dropna()
@@ -358,9 +363,9 @@ if equity_curve is not None and not equity_curve.empty:
     r1, r2, r3, r4, r5 = st.columns(5)
     r1.metric("Total Trades", total_trades)
     r2.metric("Max Consec. Losses", max_consec_losses)
-    r3.metric("Long Win Rate (%)", f"{long_win_rate:.2f}")
-    r4.metric("Short Win Rate (%)", f"{short_win_rate:.2f}")
-    r5.metric("Long Avg Win / Short Avg Win", f"${long_avg_win:.2f} / ${short_avg_win:.2f}")
+    r3.metric("Long Win Rate (%)", f"{long_win_rate:.2f}%")
+    r4.metric("Short Win Rate (%)", f"{short_win_rate:.2f}%")
+    r5.metric("Long / Short Avg Win (%)", f"{long_avg_win_pct:+.2f}% / {short_avg_win_pct:+.2f}%")
 else:
     st.write("No backtest equity curve available.")
 
@@ -408,4 +413,3 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
-
