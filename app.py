@@ -360,12 +360,43 @@ if equity_curve is not None and not equity_curve.empty:
 
     # Row 3 — Risk & Breakdown
     st.caption("RISK & BREAKDOWN")
-    r1, r2, r3, r4, r5 = st.columns(5)
+    r1, r2, r3, r4 = st.columns(4)
     r1.metric("Total Trades", total_trades)
     r2.metric("Max Consec. Losses", max_consec_losses)
     r3.metric("Long Win Rate", f"{long_win_rate:.2f}%")
     r4.metric("Short Win Rate", f"{short_win_rate:.2f}%")
-    r5.metric("L/S Avg Win", f"{long_avg_win_pct:+.2f}% / {short_avg_win_pct:+.2f}%")
+
+    st.divider()
+
+    # Row 4 — Long / Short Avg Win & Loss
+    # Also compute avg loss per side
+    long_losses_pct = pct_to_float(long_exits[long_exits["PnL ($)"] < 0]["PnL (%)"])
+    short_losses_pct = pct_to_float(short_exits[short_exits["PnL ($)"] < 0]["PnL (%)"])
+    long_avg_loss_pct = long_losses_pct.mean() if len(long_losses_pct) > 0 else 0.0
+    short_avg_loss_pct = short_losses_pct.mean() if len(short_losses_pct) > 0 else 0.0
+
+    st.caption("LONG / SHORT BREAKDOWN")
+    ls1, ls2, ls3, ls4 = st.columns(4)
+    ls1.markdown(f"""
+        <div>
+            <p style='color:gray; font-size:0.75rem; margin-bottom:2px'>Long Avg Win</p>
+            <p style='color:#28a745; font-size:1.4rem; font-weight:600; margin:0'>{long_avg_win_pct:+.2f}%</p>
+        </div>""", unsafe_allow_html=True)
+    ls2.markdown(f"""
+        <div>
+            <p style='color:gray; font-size:0.75rem; margin-bottom:2px'>Short Avg Win</p>
+            <p style='color:#28a745; font-size:1.4rem; font-weight:600; margin:0'>{short_avg_win_pct:+.2f}%</p>
+        </div>""", unsafe_allow_html=True)
+    ls3.markdown(f"""
+        <div>
+            <p style='color:gray; font-size:0.75rem; margin-bottom:2px'>Long Avg Loss</p>
+            <p style='color:#dc3545; font-size:1.4rem; font-weight:600; margin:0'>{long_avg_loss_pct:.2f}%</p>
+        </div>""", unsafe_allow_html=True)
+    ls4.markdown(f"""
+        <div>
+            <p style='color:gray; font-size:0.75rem; margin-bottom:2px'>Short Avg Loss</p>
+            <p style='color:#dc3545; font-size:1.4rem; font-weight:600; margin:0'>{short_avg_loss_pct:.2f}%</p>
+        </div>""", unsafe_allow_html=True)
 else:
     st.write("No backtest equity curve available.")
 
