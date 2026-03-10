@@ -235,11 +235,6 @@ fig.update_layout(
 
 st.plotly_chart(fig, width='stretch')  # replaces use_container_width=True
 
-# --------------------------------
-# Metrics
-# --------------------------------
-st.subheader("Backtest Metrics")
-
 equity_curve = df.get("Equity")
 trades_df = pd.DataFrame(trades) if trades is not None else pd.DataFrame()
 
@@ -263,6 +258,11 @@ if equity_curve is not None and not equity_curve.empty:
         showlegend=False
     )
     st.plotly_chart(fig_eq, width='stretch')
+
+# --------------------------------
+# Metrics
+# --------------------------------
+st.subheader("Backtest Metrics")
 
 if equity_curve is not None and not equity_curve.empty:
     try:
