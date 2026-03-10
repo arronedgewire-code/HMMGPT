@@ -81,6 +81,12 @@ def get_data():
     if "Equity" not in df.columns:
         df["Equity"] = pd.Series(1.0, index=df.index)
 
+    # Convert any single-value Series to scalars to avoid formatting errors
+    #####NEW CHANGE, KNOW IF BROKEN JUST DELETE AND IT'S NOT NEEDED IG.
+    for col in df.columns:
+        if isinstance(df[col], pd.Series) and df[col].shape[1:] == (1,):
+            df[col] = df[col].squeeze()
+
     return df, trades, bull_state, bear_state
 
 # --------------------------------
@@ -242,16 +248,18 @@ if equity_curve is not None and not equity_curve.empty:
 
     alpha = total_return - buy_hold_return
 
-    # Win rate — only count exit rows that carry a PnL ($) value
-    if "PnL ($)" in trades_df.columns and not trades_df.empty:
-        pnl_trades = trades_df[trades_df["PnL ($)"].notna()]
-        win_rate = float((pnl_trades["PnL ($)"].gt(0).sum() / len(pnl_trades)) * 100) if len(pnl_trades) > 0 else 0.0
+    # Win rate — only count exit rows that carry a PnL value
+    if "PnL" in trades_df.columns and not trades_df.empty:
+        pnl_trades = trades_df[trades_df["PnL"].notna()]
+        win_rate = float((pnl_trades["PnL"].gt(0).sum() / len(pnl_trades)) * 100) if len(pnl_trades) > 0 else 0.0
     else:
         win_rate = 0.0
 
-    # Drawdown
-    drawdown = (equity_curve.cummax() - equity_curve) / equity_curve.cummax()
-    max_drawdown = float(drawdown.max() * 100)
+    # Drawdown — expressed as % of risk per trade (1% of starting capital)
+    starting_capital = 1000  # must match run_backtest default
+    risk_baseline = starting_capital * 0.01
+    max_drawdown_dollar = float((equity_curve.cummax() - equity_curve).max())
+    max_drawdown = (max_drawdown_dollar / risk_baseline) * 100 if risk_baseline != 0 else 0.0
 
     # Display metrics in a single row
     col1, col2, col3, col4 = st.columns(4)
