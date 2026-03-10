@@ -14,7 +14,7 @@ from streamlit_option_menu import option_menu
 # --------------------------------    
 st.set_page_config(page_title="Regime-Based Trading Bot", layout="wide")
 selected = option_menu(
-    menu_title=Regime-Based Trading Bot,
+    menu_title=None,
     options=["Dashboard", "Backtest", "Analytics", "Settings"],
     icons=["bar-chart", "activity", "graph-up", "gear"],
     orientation="horizontal",
