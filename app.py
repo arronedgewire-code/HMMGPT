@@ -190,10 +190,10 @@ for regime in ["Bull", "Bear", "Crash", "Neutral"]:
         continue
 
     if regime == "Bull":
-        prices = [df.loc[ts, "Low"] * 0.997 if ts in df.index else None for ts in timestamps]
+        prices = [df.loc[ts, "Low"] * 0.985 if ts in df.index else None for ts in timestamps]
         symbol = "triangle-up"
     elif regime in ["Bear", "Crash"]:
-        prices = [df.loc[ts, "High"] * 1.003 if ts in df.index else None for ts in timestamps]
+        prices = [df.loc[ts, "High"] * 1.015 if ts in df.index else None for ts in timestamps]
         symbol = "triangle-down"
     else:
         prices = [df.loc[ts, "Close"] if ts in df.index else None for ts in timestamps]
@@ -317,3 +317,4 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
+
