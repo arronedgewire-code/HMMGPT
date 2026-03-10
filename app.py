@@ -248,12 +248,15 @@ if equity_curve is not None and not equity_curve.empty:
 
     alpha = total_return - buy_hold_return
 
-    # Win rate — only count exit rows that carry a PnL value
-    if "PnL" in trades_df.columns and not trades_df.empty:
-        pnl_trades = trades_df[trades_df["PnL"].notna()]
-        win_rate = float((pnl_trades["PnL"].gt(0).sum() / len(pnl_trades)) * 100) if len(pnl_trades) > 0 else 0.0
+    # Win rate + Max Win — only count exit rows that carry a PnL ($) value
+    if "PnL ($)" in trades_df.columns and not trades_df.empty:
+        pnl_trades = trades_df[trades_df["PnL ($)"].notna()]
+        win_rate = float((pnl_trades["PnL ($)"].gt(0).sum() / len(pnl_trades)) * 100) if len(pnl_trades) > 0 else 0.0
+        pnl_pct_vals = pnl_trades["PnL (%)"].dropna().apply(lambda x: float(str(x).replace("%", "")))
+        max_win = float(pnl_pct_vals.max()) if len(pnl_pct_vals) > 0 else 0.0
     else:
         win_rate = 0.0
+        max_win = 0.0
 
     # Drawdown — expressed as % of risk per trade (1% of starting capital)
     starting_capital = 1000  # must match run_backtest default
@@ -262,33 +265,34 @@ if equity_curve is not None and not equity_curve.empty:
     max_drawdown = (max_drawdown_dollar / risk_baseline) * 100 if risk_baseline != 0 else 0.0
 
     # Display metrics in a single row
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Total Return (%)", f"{total_return:.2f}")
     col2.metric("Alpha vs Buy & Hold (%)", f"{alpha:.2f}")
     col3.metric("Win Rate (%)", f"{win_rate:.2f}")
     col4.metric("Max Drawdown (%)", f"{max_drawdown:.2f}")
+    col5.metric("Max Win (%)", f"{max_win:.2f}")
 else:
     st.write("No backtest equity curve available.")
 
 # --------------------------------
 # Trades Log
 # --------------------------------
-st.subheader("Trade Log")
+tl_col1, tl_col2 = st.columns([3, 1])
+with tl_col1:
+    st.subheader("Trade Log")
+with tl_col2:
+    if not trades_df.empty and "PnL ($)" in trades_df.columns:
+        total_pnl = trades_df["PnL ($)"].sum()
+        pnl_color = "#28a745" if total_pnl >= 0 else "#dc3545"
+        st.markdown(
+            f"<div style='text-align:right; padding:0.5rem 0; margin-top:0.5rem'>"
+            f"<span style='color:gray; font-size:0.85rem'>TOTAL PnL</span><br>"
+            f"<span style='color:{pnl_color}; font-size:1.3rem; font-weight:bold'>${total_pnl:+.2f}</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
 if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width='stretch')
-
-    # Total PnL summary — bottom right
-    if "PnL ($)" in trades_df.columns:
-        total_pnl = trades_df["PnL ($)"].sum()
-        pnl_color = "#28a745" if total_pnl >= 0 else "#dc3545"
-        col_spacer, col_total = st.columns([3, 1])
-        with col_total:
-            st.markdown(
-                f"<div style='text-align:right; padding:0.5rem 0'>"
-                f"<span style='color:gray; font-size:0.85rem'>TOTAL PnL</span><br>"
-                f"<span style='color:{pnl_color}; font-size:1.3rem; font-weight:bold'>${total_pnl:+.2f}</span>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
