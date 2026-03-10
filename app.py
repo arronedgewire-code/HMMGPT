@@ -276,22 +276,22 @@ else:
 # --------------------------------
 # Trades Log
 # --------------------------------
-st.subheader("Trade Log")
+tl_col1, tl_col2 = st.columns([3, 1])
+with tl_col1:
+    st.subheader("Trade Log")
+with tl_col2:
+    if not trades_df.empty and "PnL ($)" in trades_df.columns:
+        total_pnl = trades_df["PnL ($)"].sum()
+        pnl_color = "#28a745" if total_pnl >= 0 else "#dc3545"
+        st.markdown(
+            f"<div style='text-align:right; padding:0.5rem 0; margin-top:0.5rem'>"
+            f"<span style='color:gray; font-size:0.85rem'>TOTAL PnL</span><br>"
+            f"<span style='color:{pnl_color}; font-size:1.3rem; font-weight:bold'>${total_pnl:+.2f}</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
 if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width='stretch')
-
-    # Total PnL summary — bottom right
-    if "PnL ($)" in trades_df.columns:
-        total_pnl = trades_df["PnL ($)"].sum()
-        pnl_color = "#28a745" if total_pnl >= 0 else "#dc3545"
-        col_spacer, col_total = st.columns([3, 1])
-        with col_total:
-            st.markdown(
-                f"<div style='text-align:right; padding:0.5rem 0'>"
-                f"<span style='color:gray; font-size:0.85rem'>TOTAL PnL</span><br>"
-                f"<span style='color:{pnl_color}; font-size:1.3rem; font-weight:bold'>${total_pnl:+.2f}</span>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
