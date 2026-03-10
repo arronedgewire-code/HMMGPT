@@ -250,6 +250,10 @@ fig.update_layout(
             x=0, y=1.02
         )
     ),
+    yaxis=dict(
+        autorange=True,
+        fixedrange=False
+    ),
     template="plotly_dark",
     height=520,
     margin=dict(t=40, b=10, l=50, r=10)
