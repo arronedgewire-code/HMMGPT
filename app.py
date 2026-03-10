@@ -29,16 +29,6 @@ selected = option_menu(
 #    show_settings()
 st.title("Regime-Based Trading Bot Dashboard")
 
-st.markdown("""
-<div style='padding:0.6rem 0.8rem; border-radius:6px; 
-background:linear-gradient(90deg,#0f3d2e,#07241b);
-border-left:4px solid #28a745;
-font-size:1.05rem'>
-<b style='color:#2ecc71'>LONG</b>
-<span style='color:#ccc'> — Current Regime: Bull Market</span>
-</div>
-""", unsafe_allow_html=True)
-
 # --------------------------------
 # Fetch Data (robust)
 # --------------------------------
@@ -245,6 +235,26 @@ fig.update_layout(
 
 st.plotly_chart(fig, width='stretch')  # replaces use_container_width=True
 
+#---------------------------------
+# Plotly Equity Curve
+#---------------------------------
+st.subheader("Equity Curve")
+fig_eq = go.Figure()
+fig_eq.add_trace(go.Scatter(
+    x=equity_curve.index,
+    y=equity_curve.values,
+    mode="lines",
+    name="Equity",
+    line=dict(color="#28a745", width=2)
+))
+fig_eq.update_layout(
+    template="plotly_dark",
+    height=300,
+    yaxis_title="Capital ($)",
+    showlegend=False
+)
+st.plotly_chart(fig_eq, width='stretch')
+
 # --------------------------------
 # Metrics
 # --------------------------------
@@ -284,17 +294,12 @@ if equity_curve is not None and not equity_curve.empty:
     # avg win/loss - gross profit, gross loss - profit factor - total - trades - expectancy
     wins = trades_df[trades_df["PnL ($)"] > 0]
     losses = trades_df[trades_df["PnL ($)"] < 0]
-
     avg_win = wins["PnL ($)"].mean() if not wins.empty else 0
     avg_loss = losses["PnL ($)"].mean() if not losses.empty else 0
-
     gross_profit = wins["PnL ($)"].sum()
     gross_loss = abs(losses["PnL ($)"].sum())
-
     profit_factor = gross_profit / gross_loss if gross_loss != 0 else 0
-
     total_trades = len(wins) + len(losses)
-
     expectancy = trades_df["PnL ($)"].mean() if total_trades > 0 else 0
 
     
@@ -363,6 +368,7 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
+
 
 
 
