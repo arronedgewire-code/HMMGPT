@@ -328,16 +328,21 @@ if equity_curve is not None and not equity_curve.empty:
     total_trades = len(wins) + len(losses)
     win_loss_ratio = avg_win / abs(avg_loss) if avg_loss != 0 else 0
 
-    # Max consecutive losses
+    # Max consecutive losses and wins
     pnl_series = trades_df["PnL ($)"].dropna()
     max_consec_losses = 0
-    current_consec = 0
+    max_consec_wins = 0
+    current_loss_streak = 0
+    current_win_streak = 0
     for val in pnl_series:
         if val < 0:
-            current_consec += 1
-            max_consec_losses = max(max_consec_losses, current_consec)
+            current_loss_streak += 1
+            current_win_streak = 0
+            max_consec_losses = max(max_consec_losses, current_loss_streak)
         else:
-            current_consec = 0
+            current_win_streak += 1
+            current_loss_streak = 0
+            max_consec_wins = max(max_consec_wins, current_win_streak)
 
     # Long vs Short breakdown
     long_exits = trades_df[trades_df["Type"] == "SELL (Long Exit)"]
@@ -380,11 +385,12 @@ if equity_curve is not None and not equity_curve.empty:
 
     # Row 3 — Risk & Breakdown
     st.caption("RISK & BREAKDOWN")
-    r1, r2, r3, r4 = st.columns(4)
+    r1, r2, r3, r4, r5 = st.columns(5)
     r1.metric("Total Trades", total_trades)
     r2.metric("Max Consec. Losses", max_consec_losses)
-    r3.metric("Long Win Rate", f"{long_win_rate:.2f}%")
-    r4.metric("Short Win Rate", f"{short_win_rate:.2f}%")
+    r3.metric("Max Consec. Wins", max_consec_wins)
+    r4.metric("Long Win Rate", f"{long_win_rate:.2f}%")
+    r5.metric("Short Win Rate", f"{short_win_rate:.2f}%")
 
     st.divider()
 
