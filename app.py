@@ -7,15 +7,40 @@ from data_loader import fetch_btc_data
 from indicators import add_indicators
 from hmm_model import detect_regimes
 from backtester import run_backtest
+from streamlit_option_menu import option_menu
 
 # --------------------------------
 # Streamlit Page Setup
 # --------------------------------
 st.set_page_config(page_title="Regime-Based Trading Bot", layout="wide")
 st.title("Regime-Based Trading Bot Dashboard")
-st.divider()
-st.subheader("strategy building, it is not ready yet")
-st.divider()
+
+st.markdown("""
+<div style='padding:0.6rem 0.8rem; border-radius:6px; 
+background:linear-gradient(90deg,#0f3d2e,#07241b);
+border-left:4px solid #28a745;
+font-size:1.05rem'>
+<b style='color:#2ecc71'>LONG</b>
+<span style='color:#ccc'> — Current Regime: Bull Market</span>
+</div>
+""", unsafe_allow_html=True)
+
+
+
+selected = option_menu(
+    menu_title=None,
+    options=["Dashboard", "Backtest", "Analytics", "Settings"],
+    icons=["bar-chart", "activity", "graph-up", "gear"],
+    orientation="horizontal",
+)
+if selected == "Dashboard":
+    show_dashboard()
+elif selected == "Backtest":
+    show_backtest()
+elif selected == "Analytics":
+    show_analytics()
+elif selected == "Settings":
+    show_settings()
 # --------------------------------
 # Fetch Data (robust)
 # --------------------------------
@@ -23,11 +48,6 @@ st.divider()
 def get_data():
     """
     Fetch BTC data from yfinance, add indicators, detect regimes, and run backtest.
-    Fully robust to:
-      - Empty or NaN data
-      - 2D Series issues with TA indicators
-      - HMM not converging / missing columns
-      - Backtester warnings/errors
     Returns:
         df (pd.DataFrame): DataFrame with indicators & regimes
         trades (list/dict): Trade logs
@@ -345,6 +365,7 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
+
 
 
 
