@@ -263,13 +263,43 @@ if equity_curve is not None and not equity_curve.empty:
     max_drawdown_dollar = float((equity_curve.cummax() - equity_curve).max())
     max_drawdown = (max_drawdown_dollar / risk_baseline) * 100 if risk_baseline != 0 else 0.0
 
+    # avg win/loss - gross profit, gross loss - profit factor - total - trades - expectancy
+    wins = trades_df[trades_df["PnL ($)"] > 0]
+    losses = trades_df[trades_df["PnL ($)"] < 0]
+
+    avg_win = wins["PnL ($)"].mean() if not wins.empty else 0
+    avg_loss = losses["PnL ($)"].mean() if not losses.empty else 0
+
+    gross_profit = wins["PnL ($)"].sum()
+    gross_loss = abs(losses["PnL ($)"].sum())
+
+    profit_factor = gross_profit / gross_loss if gross_loss != 0 else 0
+
+    total_trades = len(wins) + len(losses)
+
+    expectancy = trades_df["PnL ($)"].mean() if total_trades > 0 else 0
+
+    
     # Display metrics in a single row
+    # Row 1 — Performance
     col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Total Return (%)", f"{total_return:.2f}")
     col2.metric("Alpha vs Buy & Hold (%)", f"{alpha:.2f}")
     col3.metric("Win Rate (%)", f"{win_rate:.2f}")
     col4.metric("Max Drawdown — 2% Risk ($)", f"${max_drawdown_dollar:.2f}")
     col5.metric("Max Win — 2% Risk ($)", f"${max_win_dollar:.2f}")
+
+    st.divider()
+
+    # Row 2 — Trade Quality
+    q1, q2, q3, q4, q5 = st.columns(5)
+    q1.metric("Avg Win ($)", f"${avg_win:.2f}")
+    q2.metric("Avg Loss ($)", f"${avg_loss:.2f}")
+    q3.metric("Profit Factor", f"{profit_factor:.2f}")
+    q4.metric("Expectancy ($)", f"${expectancy:.2f}")
+    q5.metric("Total Trades", total_trades)
+else:
+    st.write("No backtest equity curve available.")
 else:
     st.write("No backtest equity curve available.")
 
@@ -317,5 +347,6 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
+
 
 
