@@ -5,4 +5,5 @@ plotly
 yfinance
 hmmlearn
 ta
+streamlit_option_menu
 scikit-learn
