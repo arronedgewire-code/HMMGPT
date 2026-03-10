@@ -260,7 +260,6 @@ if equity_curve is not None and not equity_curve.empty:
         margin=dict(t=10, b=10, l=50, r=10)
     )
     st.plotly_chart(fig_eq, width='stretch')
-
 # --------------------------------
 # Metrics
 # --------------------------------
@@ -444,3 +443,4 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
+
