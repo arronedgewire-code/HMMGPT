@@ -259,7 +259,7 @@ if equity_curve is not None and not equity_curve.empty:
 
     # Drawdown — expressed as % of risk per trade (1% of starting capital)
     starting_capital = 1000  # must match run_backtest default
-    risk_baseline = starting_capital * 0.01
+    risk_baseline = starting_capital * 0.02
     max_drawdown_dollar = float((equity_curve.cummax() - equity_curve).max())
     max_drawdown = (max_drawdown_dollar / risk_baseline) * 100 if risk_baseline != 0 else 0.0
 
@@ -268,8 +268,8 @@ if equity_curve is not None and not equity_curve.empty:
     col1.metric("Total Return (%)", f"{total_return:.2f}")
     col2.metric("Alpha vs Buy & Hold (%)", f"{alpha:.2f}")
     col3.metric("Win Rate (%)", f"{win_rate:.2f}")
-    col4.metric("Max Drawdown — 1% Risk ($)", f"${max_drawdown_dollar:.2f}")
-    col5.metric("Max Win — 1% Risk ($)", f"${max_win_dollar:.2f}")
+    col4.metric("Max Drawdown — 2% Risk ($)", f"${max_drawdown_dollar:.2f}")
+    col5.metric("Max Win — 2% Risk ($)", f"${max_win_dollar:.2f}")
 else:
     st.write("No backtest equity curve available.")
 
