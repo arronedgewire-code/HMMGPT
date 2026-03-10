@@ -143,12 +143,32 @@ st.markdown(f"""
 # --------------------------------
 st.subheader("BTC/USD Chart with Regimes")
 
+# Range selector buttons — filter data before drawing so y-axis scales correctly
+range_options = {"1W": 7, "1M": 30, "3M": 90, "YTD": None, "1Y": 365, "2Y": 730}
+if "chart_range" not in st.session_state:
+    st.session_state.chart_range = "3M"
+
+btn_cols = st.columns(len(range_options))
+for i, label in enumerate(range_options):
+    if btn_cols[i].button(label, key=f"range_{label}", 
+                          type="primary" if st.session_state.chart_range == label else "secondary"):
+        st.session_state.chart_range = label
+
+# Slice dataframe to selected range
+end_date = df.index[-1]
+selected = st.session_state.chart_range
+if selected == "YTD":
+    start_date = pd.Timestamp(f"{end_date.year}-01-01", tz=end_date.tzinfo)
+else:
+    start_date = end_date - pd.Timedelta(days=range_options[selected])
+df_chart = df[df.index >= start_date]
+
 fig = go.Figure(data=[go.Candlestick(
-    x=df.index,
-    open=df["Open"],
-    high=df["High"],
-    low=df["Low"],
-    close=df["Close"],
+    x=df_chart.index,
+    open=df_chart["Open"],
+    high=df_chart["High"],
+    low=df_chart["Low"],
+    close=df_chart["Close"],
     name="Price"
 )])
 
@@ -159,7 +179,7 @@ marker_colors = {"Bull": "lime", "Bear": "red", "Crash": "darkred", "Neutral": "
 
 # Draw a rectangle for each contiguous segment, not one per regime type
 # Also collect segment start points for markers
-regime_series = df["regime"].dropna()
+regime_series = df_chart["regime"].dropna()
 segment_start = regime_series.index[0]
 current_regime = regime_series.iloc[0]
 
@@ -198,13 +218,13 @@ for regime in ["Bull", "Bear", "Crash", "Neutral"]:
         continue
 
     if regime == "Bull":
-        prices = [df.loc[ts, "Low"] * 0.997 if ts in df.index else None for ts in timestamps]
+        prices = [df_chart.loc[ts, "Low"] * 0.99 if ts in df_chart.index else None for ts in timestamps]
         symbol = "triangle-up"
     elif regime in ["Bear", "Crash"]:
-        prices = [df.loc[ts, "High"] * 1.003 if ts in df.index else None for ts in timestamps]
+        prices = [df_chart.loc[ts, "High"] * 1.01 if ts in df_chart.index else None for ts in timestamps]
         symbol = "triangle-down"
     else:
-        prices = [df.loc[ts, "Close"] if ts in df.index else None for ts in timestamps]
+        prices = [df_chart.loc[ts, "Close"] if ts in df_chart.index else None for ts in timestamps]
         symbol = "diamond"
 
     valid = [(ts, p) for ts, p in zip(timestamps, prices) if p is not None]
@@ -227,36 +247,12 @@ for regime in ["Bull", "Bear", "Crash", "Neutral"]:
         hovertemplate=f"<b>{regime} Regime Start</b><br>%{{x}}<extra></extra>"
     ))
 
-# Default view: last 3 months
-end_date = df.index[-1]
-start_3m = end_date - pd.DateOffset(months=3)
-
 fig.update_layout(
-    xaxis=dict(
-        rangeslider_visible=False,
-        range=[start_3m, end_date],
-        rangeselector=dict(
-            buttons=[
-                dict(count=7,  label="1W", step="day",   stepmode="backward"),
-                dict(count=1,  label="1M", step="month", stepmode="backward"),
-                dict(count=3,  label="3M", step="month", stepmode="backward"),
-                dict(count=1,  label="YTD", step="year", stepmode="todate"),
-                dict(count=1,  label="1Y", step="year",  stepmode="backward"),
-                dict(step="all", label="2Y"),
-            ],
-            bgcolor="#1e1e1e",
-            activecolor="#444",
-            font=dict(color="white", size=12),
-            x=0, y=1.02
-        )
-    ),
-    yaxis=dict(
-        autorange=True,
-        fixedrange=False
-    ),
+    xaxis=dict(rangeslider_visible=False),
+    yaxis=dict(autorange=True, fixedrange=False),
     template="plotly_dark",
     height=520,
-    margin=dict(t=40, b=10, l=50, r=10)
+    margin=dict(t=10, b=10, l=50, r=10)
 )
 
 st.plotly_chart(fig, width='stretch')  # replaces use_container_width=True
