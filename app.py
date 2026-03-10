@@ -300,8 +300,6 @@ if equity_curve is not None and not equity_curve.empty:
     q5.metric("Total Trades", total_trades)
 else:
     st.write("No backtest equity curve available.")
-else:
-    st.write("No backtest equity curve available.")
 
 # --------------------------------
 # Trades Log
@@ -347,6 +345,7 @@ if trades_df.empty:
     st.write("No trades executed yet.")
 else:
     st.dataframe(trades_df, width="stretch")
+
 
 
 
