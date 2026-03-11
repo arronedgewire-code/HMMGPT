@@ -3,7 +3,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
-from data_loader import fetch_btc_data
+from data_loader import fetch_btc_data, TICKER_MAP
 from indicators import add_indicators
 from hmm_model import detect_regimes
 from backtester import run_backtest
@@ -15,25 +15,21 @@ from streamlit_option_menu import option_menu
 st.set_page_config(page_title="Regime-Based Trading Bot", layout="wide")
 selected = option_menu(
     menu_title=None,
-    options=["Dashboard", "Backtest", "Analytics", "Settings"],
-    icons=["bar-chart", "activity", "graph-up", "gear"],
+    options=["BTC", "NDQ", "XAU", "XAG"],
+    icons=["currency-bitcoin", "bar-chart-line", "gem", "circle"],
     orientation="horizontal",
 )
-#if selected == "Dashboard":
-    #show_dashboard()
-#elif selected == "Backtest":
-#show_backtest()
-#elif selected == "Analytics":
-#    show_analytics()
-#elif selected == "Settings":
-#    show_settings()
-st.title("Regime-Based Trading Bot Dashboard")
+
+# Map selected nav label to yfinance ticker and display name
+ticker = TICKER_MAP.get(selected, "BTC-USD")
+display_names = {"BTC": "BTC/USD", "NDQ": "Nasdaq 100", "XAU": "Gold (XAU/USD)", "XAG": "Silver (XAG/USD)"}
+st.title(f"Regime-Based Trading Bot — {display_names.get(selected, selected)}")
 
 # --------------------------------
 # Fetch Data (robust)
 # --------------------------------
 @st.cache_data(ttl=3600)
-def get_data():
+def get_data(ticker="BTC-USD"):
     """
     Fetch BTC data from yfinance, add indicators, detect regimes, and run backtest.
     Returns:
@@ -44,7 +40,7 @@ def get_data():
     """
     # === Fetch BTC data safely ===
     try:
-        df = fetch_btc_data()
+        df = fetch_btc_data(ticker=ticker)
         if df.empty:
             print("[get_data] Warning: BTC data empty.")
             return pd.DataFrame(), [], None, None
@@ -101,7 +97,7 @@ def get_data():
 # Load Data
 # --------------------------------
 try:
-    df, trades, bull_state, bear_state = get_data()
+    df, trades, bull_state, bear_state = get_data(ticker)
     if df is None or df.empty:
         st.error("Failed to load BTC data. Please try again later.")
         st.stop()
@@ -141,7 +137,7 @@ st.markdown(f"""
 # --------------------------------
 # Plotly Candlestick Chart with Regimes
 # --------------------------------
-st.subheader("BTC/USD Chart with Regimes")
+st.subheader(f"{display_names.get(selected, selected)} Chart with Regimes")
 
 # Range selector buttons — filter data before drawing so y-axis scales correctly
 range_options = {"1W": 7, "1M": 30, "3M": 90, "YTD": None, "1Y": 365, "2Y": 730}
