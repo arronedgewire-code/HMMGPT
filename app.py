@@ -114,7 +114,7 @@ regime_value = latest["regime"] if "regime" in latest.index else "N/A"
 if isinstance(regime_value, pd.Series):
     regime_value = regime_value.iloc[0]
 
-# Scan trade log to determine actual open position + entry price
+# Scan trade log for actual open position + entry details
 current_position = "CASH"
 entry_price_open = None
 entry_risk_open  = None
@@ -134,51 +134,38 @@ for tr in (trades or []):
 
 signal = current_position
 banner_color = "#28a745" if signal == "LONG" else "#dc3545" if signal == "SHORT" else "#fd7e14"
+current_price = float(df["Close"].iloc[-1])
 
 # Unrealised PnL on open position
-current_price = float(df["Close"].iloc[-1])
-unrealised_str = ""
-unrealised_color = "#ccc"
+unrealised_html = ""
 if signal in ["LONG", "SHORT"] and entry_price_open and entry_risk_open:
     if signal == "LONG":
         raw_pnl = (current_price - entry_price_open) * (entry_risk_open * 25 / entry_price_open)
     else:
         raw_pnl = (entry_price_open - current_price) * (entry_risk_open * 25 / entry_price_open)
     pct = (raw_pnl / entry_risk_open) * 100
-    unrealised_color = "#28a745" if raw_pnl >= 0 else "#dc3545"
+    u_color = "#28a745" if raw_pnl >= 0 else "#dc3545"
     arrow = "▲" if raw_pnl >= 0 else "▼"
-    unrealised_str = f"{arrow} ${raw_pnl:+.2f} ({pct:+.2f}%) unrealised"
+    unrealised_html = f'<span style="color:{u_color}; font-size:1.1rem; font-weight:600; margin-left:1.4rem">{arrow} ${raw_pnl:+.2f} ({pct:+.2f}%) unrealised</span>'
 
 # Regime context label
 if signal == "LONG":
-    if regime_value == "Neutral":
-        regime_label = "Neutral — No Exit Signal"
-    elif regime_value in ["Crash", "Bear"]:
-        regime_label = "⚠️ Crash Regime — Watching Exit"
-    else:
-        regime_label = f"{regime_value} Regime"
+    regime_label = "Neutral — No Exit Signal" if regime_value == "Neutral" else ("⚠️ Crash — Watching Exit" if regime_value in ["Crash","Bear"] else f"{regime_value} Regime")
 elif signal == "SHORT":
-    if regime_value == "Neutral":
-        regime_label = "Neutral — No Exit Signal"
-    elif regime_value == "Bull":
-        regime_label = "⚠️ Bull Regime — Watching Exit"
-    else:
-        regime_label = f"{regime_value} Regime"
+    regime_label = "Neutral — No Exit Signal" if regime_value == "Neutral" else ("⚠️ Bull — Watching Exit" if regime_value == "Bull" else f"{regime_value} Regime")
 else:
-    if regime_value == "Bull":
-        regime_label = "Bull Regime — Watching for Long Entry"
-    elif regime_value in ["Crash", "Bear"]:
-        regime_label = "Crash Regime — Watching for Short Entry"
-    else:
-        regime_label = "Neutral — No Signal"
+    regime_label = "Bull — Watching for Long" if regime_value == "Bull" else ("Crash — Watching for Short" if regime_value in ["Crash","Bear"] else "Neutral — No Signal")
 
-unrealised_html = f'<span style="color:{unrealised_color}; font-size:1.1rem; font-weight:600; margin-left:1.2rem">{unrealised_str}</span>' if unrealised_str else ""
+price_html = f'<span style="color:#aaa; font-size:1rem; font-weight:500; margin-left:1.2rem">${current_price:,.2f}</span>'
+
 st.markdown(f"""
     <div style="background-color:{banner_color}22; border-left:5px solid {banner_color};
-                padding:1rem 1.5rem; border-radius:4px; margin-bottom:1rem; display:flex; align-items:center; flex-wrap:wrap; gap:0.5rem">
+                padding:1rem 1.5rem; border-radius:4px; margin-bottom:1rem;
+                display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem">
         <span style="color:{banner_color}; font-size:1.8rem; font-weight:bold">{signal}</span>
+        {price_html}
         {unrealised_html}
-        <span style="color:#888; font-size:1rem; margin-left:auto">{regime_label}</span>
+        <span style="color:#666; font-size:0.95rem; margin-left:auto">{regime_label}</span>
     </div>
 """, unsafe_allow_html=True)
 
@@ -192,10 +179,12 @@ range_options = {"1W": 7, "1M": 30, "3M": 90, "YTD": None, "1Y": 365, "2Y": 730}
 if "chart_range" not in st.session_state:
     st.session_state.chart_range = "3M"
 
-btn_cols = st.columns(len(range_options))
+# Compact left-aligned buttons with spacer on right
+btn_cols = st.columns([1, 1, 1, 1, 1, 1, 6])
 for i, label in enumerate(range_options):
-    if btn_cols[i].button(label, key=f"range_{label}", 
-                          type="primary" if st.session_state.chart_range == label else "secondary"):
+    if btn_cols[i].button(label, key=f"range_{label}",
+                          type="primary" if st.session_state.chart_range == label else "secondary",
+                          use_container_width=True):
         st.session_state.chart_range = label
 
 # Slice dataframe to selected range — chart_range avoids overwriting nav `selected`
@@ -342,12 +331,35 @@ if equity_curve is not None and not equity_curve.empty:
     ))
     fig_eq.update_layout(
         template="plotly_dark",
-        height=380,
+        height=320,
         yaxis_title="Capital ($)",
         showlegend=False,
-        margin=dict(t=10, b=10, l=50, r=10)
+        margin=dict(t=10, b=0, l=50, r=10)
     )
     st.plotly_chart(fig_eq, width='stretch')
+
+    # Drawdown chart — directly below, shared x-axis feel
+    running_max = equity_curve.cummax()
+    drawdown = equity_curve - running_max  # always <= 0
+    fig_dd = go.Figure()
+    fig_dd.add_trace(go.Scatter(
+        x=drawdown.index,
+        y=drawdown.values,
+        mode="lines",
+        fill="tozeroy",
+        fillcolor="rgba(220,53,69,0.2)",
+        line=dict(color="#dc3545", width=1.5),
+        hovertemplate="$%{y:.2f}<extra></extra>"
+    ))
+    fig_dd.update_layout(
+        template="plotly_dark",
+        height=160,
+        yaxis_title="Drawdown ($)",
+        showlegend=False,
+        margin=dict(t=0, b=10, l=50, r=10)
+    )
+    st.plotly_chart(fig_dd, width="stretch")
+
 # --------------------------------
 # Metrics
 # --------------------------------
