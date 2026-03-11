@@ -107,13 +107,20 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
     """
     df = df.copy()
     capital = starting_capital
-    risk_per_trade = capital * 0.02
-    position = 0
-    position_side = None
+    risk_per_trade = capital * 0.02  # initialised here, updated dynamically on each entry
+    position = 0          # size of position (always positive)
+    position_side = None  # "long" or "short"
     entry_price = 0
     cooldown_until = None
     equity_curve = []
     trades = []
+
+    # ── Stop loss & trailing stop config ──────────────────────────────────────
+    STOP_LOSS_PCT  = -190.0  # flat hard stop — exit if PnL% drops to this
+    TRAIL_ACTIVATE =   40.0  # trailing stop arms once PnL% reaches this
+    TRAIL_DISTANCE =   20.0  # trail sits this many % below the peak PnL%
+    trail_active   = False
+    peak_pnl_pct   = 0.0
 
     for i in range(len(df)):
         row = df.iloc[i]
@@ -128,18 +135,16 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
 
         # --- Exit logic (checked before entry) ---
 
-        # Close long on Crash/Bear — requires 1 candle close confirmation + 1+ bearish confirmations
+        # Close long on Bear or Crash
         if position_side == "long" and regime in ["Bear", "Crash"]:
-            bear_score = bearish_confirmation_score(row)
-            if bear_score >= 1:
-                exit_price = close_price
-                pnl = (exit_price - entry_price) * position
-                capital += pnl
-                pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade != 0 else 0.0
-                trades.append({"Time": time, "Type": "SELL (Long Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%"})
-                position = 0
-                position_side = None
-                cooldown_until = time + pd.Timedelta(hours=cooldown_hours)
+            exit_price = close_price
+            pnl = (exit_price - entry_price) * position
+            capital += pnl
+            pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade != 0 else 0.0  # % return on capital risked
+            trades.append({"Time": time, "Type": "SELL (Long Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%"})
+            position = 0
+            position_side = None
+            cooldown_until = time + pd.Timedelta(hours=cooldown_hours)
 
         # Close short only on Bull signal
         elif position_side == "short" and regime == "Bull":
@@ -165,6 +170,8 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
                     entry_price = close_price
                     position_side = "long"
                     notional = risk_per_trade * leverage
+                    trail_active = False
+                    peak_pnl_pct = 0.0
                     trades.append({"Time": time, "Type": "BUY (Long)", "Price": round(entry_price, 2), "Risk ($)": round(risk_per_trade, 2), "Notional ($)": f"x{leverage} = ${notional:.2f}"})
 
             # Short entry: Crash regime, bearish confirmations
@@ -176,7 +183,52 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
                     entry_price = close_price
                     position_side = "short"
                     notional = risk_per_trade * leverage
+                    trail_active = False
+                    peak_pnl_pct = 0.0
                     trades.append({"Time": time, "Type": "SELL SHORT", "Price": round(entry_price, 2), "Risk ($)": round(risk_per_trade, 2), "Notional ($)": f"x{leverage} = ${notional:.2f}"})
+
+        # --- Stop loss & trailing stop check ---
+        if position_side in ["long", "short"] and risk_per_trade > 0:
+            if position_side == "long":
+                unrealised_pnl = (close_price - entry_price) * position
+            else:
+                unrealised_pnl = (entry_price - close_price) * position
+            current_pnl_pct = (unrealised_pnl / risk_per_trade) * 100
+
+            exit_reason = None
+
+            # 1. Flat hard stop loss
+            if current_pnl_pct <= STOP_LOSS_PCT:
+                exit_reason = f"Stop Loss ({current_pnl_pct:.1f}%)"
+
+            # 2. Trailing stop (only if hard stop not triggered)
+            else:
+                if current_pnl_pct >= TRAIL_ACTIVATE:
+                    trail_active = True
+                if trail_active:
+                    if current_pnl_pct > peak_pnl_pct:
+                        peak_pnl_pct = current_pnl_pct
+                    if peak_pnl_pct - current_pnl_pct >= TRAIL_DISTANCE:
+                        exit_reason = f"Trailing Stop (peak: {peak_pnl_pct:.1f}%)"
+
+            if exit_reason:
+                pnl = unrealised_pnl
+                capital += pnl
+                pnl_pct = (pnl / risk_per_trade) * 100
+                exit_type = "SELL (Long Exit)" if position_side == "long" else "COVER (Short Exit)"
+                trades.append({
+                    "Time": time, "Type": exit_type,
+                    "Price": round(close_price, 2),
+                    "PnL ($)": round(pnl, 2),
+                    "PnL (%)": f"{pnl_pct:+.2f}%",
+                    "Exit Reason": exit_reason
+                })
+                position = 0
+                position_side = None
+                trail_active = False
+                peak_pnl_pct = 0.0
+                if exit_type == "SELL (Long Exit)":
+                    cooldown_until = time + pd.Timedelta(hours=cooldown_hours)
 
         # --- Equity curve update ---
         if position_side == "long":
