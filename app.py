@@ -150,13 +150,13 @@ for i, label in enumerate(range_options):
                           type="primary" if st.session_state.chart_range == label else "secondary"):
         st.session_state.chart_range = label
 
-# Slice dataframe to selected range — use chart_range var to avoid overwriting nav `selected`
+# Slice dataframe to selected range
 end_date = df.index[-1]
-chart_range = st.session_state.chart_range
-if chart_range == "YTD":
+selected = st.session_state.chart_range
+if selected == "YTD":
     start_date = pd.Timestamp(f"{end_date.year}-01-01", tz=end_date.tzinfo)
 else:
-    start_date = end_date - pd.Timedelta(days=range_options[chart_range])
+    start_date = end_date - pd.Timedelta(days=range_options[selected])
 df_chart = df[df.index >= start_date]
 
 fig = go.Figure(data=[go.Candlestick(
@@ -343,7 +343,9 @@ if equity_curve is not None and not equity_curve.empty:
             current_loss_streak = 0
             max_consec_wins = max(max_consec_wins, current_win_streak)
 
-    # Long vs Short breakdown
+    # Long vs Short breakdown — guard against empty trades_df
+    if "Type" not in trades_df.columns:
+        trades_df["Type"] = pd.NA
     long_exits = trades_df[trades_df["Type"] == "SELL (Long Exit)"]
     short_exits = trades_df[trades_df["Type"] == "COVER (Short Exit)"]
     long_win_rate = float((long_exits["PnL ($)"].gt(0).sum() / len(long_exits)) * 100) if len(long_exits) > 0 else 0.0
