@@ -117,8 +117,8 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
 
     # ── Stop loss & trailing stop config ──────────────────────────────────────
     STOP_LOSS_PCT  = -190.0  # flat hard stop — exit if PnL% drops to this
-    TRAIL_ACTIVATE =   125.0  # trailing stop arms once PnL% reaches this
-    TRAIL_DISTANCE =   50.0  # trail sits this many % below the peak PnL%
+    TRAIL_ACTIVATE =   40.0  # trailing stop arms once PnL% reaches this
+    TRAIL_DISTANCE =   20.0  # trail sits this many % below the peak PnL%
     trail_active   = False
     peak_pnl_pct   = 0.0
 
@@ -141,7 +141,7 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
             pnl = (exit_price - entry_price) * position
             capital += pnl
             pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade != 0 else 0.0  # % return on capital risked
-            trades.append({"Time": time, "Type": "SELL (Long Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%"})
+            trades.append({"Time": time, "Type": "SELL (Long Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%", "Exit Reason": "Regime Change (Crash)"})
             position = 0
             position_side = None
             cooldown_until = time + pd.Timedelta(hours=cooldown_hours)
@@ -152,7 +152,7 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
             pnl = (entry_price - exit_price) * position  # profit when price falls
             capital += pnl
             pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade != 0 else 0.0  # % return on capital risked
-            trades.append({"Time": time, "Type": "COVER (Short Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%"})
+            trades.append({"Time": time, "Type": "COVER (Short Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%", "Exit Reason": "Regime Change (Bull)"})
             position = 0
             position_side = None
             # No cooldown on short -> long transition so Bull entry can fire immediately
@@ -240,4 +240,3 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
 
     df["Equity"] = equity_curve
     return df, trades
-
