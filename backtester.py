@@ -117,8 +117,8 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
 
     # ── Stop loss & trailing stop config ──────────────────────────────────────
     STOP_LOSS_PCT  = -190.0  # flat hard stop — exit if PnL% drops to this
-    TRAIL_ACTIVATE =   40.0  # trailing stop arms once PnL% reaches this
-    TRAIL_DISTANCE =   20.0  # trail sits this many % below the peak PnL%
+    TRAIL_ACTIVATE =   125.0  # trailing stop arms once PnL% reaches this
+    TRAIL_DISTANCE =   50.0  # trail sits this many % below the peak PnL%
     trail_active   = False
     peak_pnl_pct   = 0.0
 
@@ -240,3 +240,4 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
 
     df["Equity"] = equity_curve
     return df, trades
+
