@@ -11,3 +11,7 @@ i think candlestick data is pulled live (the candle_close data gets retrieved ev
 
 data broken or no longer providing desired results. 
 discord bot not pushing msg's either.
+
+since strategy is not returning good results anymore, try stop losses.
+
+not sure why strat has changed maybe HMM model returns very different results if a few days pass, few new latest candles and the few from 2 years ago also move forward.
