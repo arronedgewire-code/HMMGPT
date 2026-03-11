@@ -53,9 +53,28 @@ def detect_regimes(df, n_states=3):
     X = scaler.fit_transform(daily)
 
     try:
-        model = GaussianHMM(n_components=n_states, covariance_type="full", n_iter=1000, random_state=42)
-        model.fit(X)
-        hidden_states = model.predict(X)
+        # Run multiple restarts and keep the best scoring model
+        best_model = None
+        best_score = -np.inf
+        for seed in range(5):
+            m = GaussianHMM(
+                n_components=n_states,
+                covariance_type="full",
+                n_iter=2000,
+                tol=1e-3,        # relax tolerance — delta of 0.003 is converged enough
+                random_state=seed
+            )
+            m.fit(X)
+            try:
+                score = m.score(X)
+                if score > best_score:
+                    best_score = score
+                    best_model = m
+            except Exception:
+                continue
+        if best_model is None:
+            raise ValueError("All HMM restarts failed to score.")
+        hidden_states = best_model.predict(X)
     except Exception as e:
         print(f"[detect_regimes] HMM failed: {e}")
         df["regime"] = "Neutral"
