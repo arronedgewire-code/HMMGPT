@@ -107,9 +107,9 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
     """
     df = df.copy()
     capital = starting_capital
-    risk_per_trade = capital * 0.02  # initialised here, updated dynamically on each entry
-    position = 0          # size of position (always positive)
-    position_side = None  # "long" or "short"
+    risk_per_trade = capital * 0.02
+    position = 0
+    position_side = None
     entry_price = 0
     cooldown_until = None
     equity_curve = []
@@ -128,16 +128,18 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
 
         # --- Exit logic (checked before entry) ---
 
-        # Close long on Bear or Crash
+        # Close long on Crash/Bear — requires 1 candle close confirmation + 1+ bearish confirmations
         if position_side == "long" and regime in ["Bear", "Crash"]:
-            exit_price = close_price
-            pnl = (exit_price - entry_price) * position
-            capital += pnl
-            pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade != 0 else 0.0  # % return on capital risked
-            trades.append({"Time": time, "Type": "SELL (Long Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%"})
-            position = 0
-            position_side = None
-            cooldown_until = time + pd.Timedelta(hours=cooldown_hours)
+            bear_score = bearish_confirmation_score(row)
+            if bear_score >= 1:
+                exit_price = close_price
+                pnl = (exit_price - entry_price) * position
+                capital += pnl
+                pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade != 0 else 0.0
+                trades.append({"Time": time, "Type": "SELL (Long Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%"})
+                position = 0
+                position_side = None
+                cooldown_until = time + pd.Timedelta(hours=cooldown_hours)
 
         # Close short only on Bull signal
         elif position_side == "short" and regime == "Bull":
@@ -186,11 +188,3 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
 
     df["Equity"] = equity_curve
     return df, trades
-
-
-
-
-
-
-
-
