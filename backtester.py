@@ -96,7 +96,7 @@ def bearish_confirmation_score(row):
 # -----------------------------
 # Backtesting engine
 # -----------------------------
-def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, short_min_confirmations=6, cooldown_hours=12):
+def run_backtest(df, starting_capital=10000, leverage=10, min_confirmations=6, short_min_confirmations=6, cooldown_hours=12):
     """
     Run regime-based backtest with long and short positions.
     # Initial capital: $1000 | Leverage: 25x | Risk per trade: 2% of current capital (dynamic)
@@ -116,7 +116,7 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
     trades = []
 
     # ── Stop loss & trailing stop config ──────────────────────────────────────
-    STOP_LOSS_PCT  = -190.0  # flat hard stop — exit if PnL% drops to this
+    STOP_LOSS_PCT  = -100.0  # flat hard stop — exit if PnL% drops to this
     TRAIL_ACTIVATE =   40.0  # trailing stop arms once PnL% reaches this
     TRAIL_DISTANCE =   20.0  # trail sits this many % below the peak PnL%
     trail_active   = False
@@ -240,3 +240,4 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
 
     df["Equity"] = equity_curve
     return df, trades
+
