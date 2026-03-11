@@ -27,8 +27,13 @@ def confirmation_score(row):
         ema200     = safe_float(row.get("EMA200", 0))
         macd       = safe_float(row.get("MACD", 0))
         signal     = safe_float(row.get("Signal", 0))
+        vwap       = safe_float(row.get("VWAP", 0))
+        atr_ratio  = safe_float(row.get("ATR_ratio", 1))
+        stoch_k    = safe_float(row.get("Stoch_K", 50))
+        stoch_d    = safe_float(row.get("Stoch_D", 50))
 
         score = sum([
+            # --- Original 9 ---
             rsi < 90,
             momentum > 0.01,
             vol < 0.06,
@@ -38,6 +43,11 @@ def confirmation_score(row):
             close > ema100,
             close > ema200,
             macd > signal,
+            # --- New 4 ---
+            close > vwap,            # price above fair value (VWAP)
+            stoch_k > stoch_d,       # stochastic bullish crossover
+            stoch_k < 80,            # not overbought on stochastic
+            atr_ratio > 1.0,         # ATR expanding — momentum behind move
         ])
     except Exception as e:
         print(f"[backtester] confirmation_score error: {e}")
@@ -61,8 +71,13 @@ def bearish_confirmation_score(row):
         ema200     = safe_float(row.get("EMA200", 0))
         macd       = safe_float(row.get("MACD", 0))
         signal     = safe_float(row.get("Signal", 0))
+        vwap       = safe_float(row.get("VWAP", 0))
+        atr_ratio  = safe_float(row.get("ATR_ratio", 1))
+        stoch_k    = safe_float(row.get("Stoch_K", 50))
+        stoch_d    = safe_float(row.get("Stoch_D", 50))
 
         score = sum([
+            # --- Original 9 ---
             (rsi > 70 or rsi < 60),
             momentum < -0.01,
             vol > 0.03,
@@ -72,6 +87,11 @@ def bearish_confirmation_score(row):
             close < ema100,
             close < ema200,
             macd < signal,
+            # --- New 4 ---
+            close < vwap,            # price below fair value (VWAP)
+            stoch_k < stoch_d,       # stochastic bearish crossover
+            stoch_k > 20,            # not oversold — still room to fall
+            atr_ratio > 1.0,         # ATR expanding — momentum behind move
         ])
     except Exception as e:
         print(f"[backtester] bearish_confirmation_score error: {e}")
