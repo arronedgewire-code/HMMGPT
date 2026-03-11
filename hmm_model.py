@@ -27,7 +27,7 @@ def detect_regimes(df, n_states=3):
     # Step 1: Resample hourly features to daily
     # -----------------------------------------------
     daily = pd.DataFrame()
-    daily["Returns"] = df["Close"].resample("D").last().pct_change()
+    daily["Returns"] = df["Close"].resample("D").last().pct_change(fill_method=None)
     daily["Range"] = (
         df["High"].resample("D").max() - df["Low"].resample("D").min()
     ) / df["Close"].resample("D").last()
