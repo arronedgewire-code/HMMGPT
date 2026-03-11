@@ -150,13 +150,13 @@ for i, label in enumerate(range_options):
                           type="primary" if st.session_state.chart_range == label else "secondary"):
         st.session_state.chart_range = label
 
-# Slice dataframe to selected range
+# Slice dataframe to selected range — use chart_range var to avoid overwriting nav `selected`
 end_date = df.index[-1]
-selected = st.session_state.chart_range
-if selected == "YTD":
+chart_range = st.session_state.chart_range
+if chart_range == "YTD":
     start_date = pd.Timestamp(f"{end_date.year}-01-01", tz=end_date.tzinfo)
 else:
-    start_date = end_date - pd.Timedelta(days=range_options[selected])
+    start_date = end_date - pd.Timedelta(days=range_options[chart_range])
 df_chart = df[df.index >= start_date]
 
 fig = go.Figure(data=[go.Candlestick(
