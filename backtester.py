@@ -96,7 +96,7 @@ def bearish_confirmation_score(row):
 # -----------------------------
 # Backtesting engine
 # -----------------------------
-def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, short_min_confirmations=6, cooldown_hours=12):
+def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, short_min_confirmations=7, cooldown_hours=12):
     """
     Run regime-based backtest with long and short positions.
     # Initial capital: $1000 | Leverage: 25x | Risk per trade: 2% of current capital (dynamic)
@@ -186,3 +186,4 @@ def run_backtest(df, starting_capital=1000, leverage=25, min_confirmations=6, sh
 
     df["Equity"] = equity_curve
     return df, trades
+
