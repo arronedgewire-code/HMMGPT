@@ -11,14 +11,20 @@ TICKER_MAP = {
     "XAG": "SI=F",
 }
 
+# BTC supports 2y of hourly data — futures are limited to ~60 days hourly on yfinance
+HOURLY_TICKERS = {"BTC-USD"}
+
 def fetch_btc_data(ticker="BTC-USD", retries=5, pause=5):
     """
-    Fetch historical OHLCV data from Yahoo Finance for any supported ticker.
+    Fetch historical OHLCV data from Yahoo Finance.
+    - BTC-USD: 2 years, 1h candles
+    - All others (NDQ, XAU, XAG): 2 years, 1d candles
     Retries safely in case of network issues or rate limits.
     """
+    interval = "1h" if ticker in HOURLY_TICKERS else "1d"
     for attempt in range(1, retries + 1):
         try:
-            df = yf.download(ticker, period="2y", interval="1h", progress=False)
+            df = yf.download(ticker, period="2y", interval=interval, progress=False)
             if df.empty:
                 raise ValueError(f"Empty data received for {ticker}.")
             # Flatten MultiIndex columns returned by newer yfinance versions
