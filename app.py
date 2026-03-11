@@ -107,30 +107,58 @@ except Exception as e:
     st.stop()
 
 # --------------------------------
-# CURRENT SIGNAL
+# CURRENT SIGNAL — derived from actual open position, not raw regime
 # --------------------------------
 latest = df.iloc[-1]
-
-# Ensure regime is scalar
 regime_value = latest["regime"] if "regime" in latest.index else "N/A"
 if isinstance(regime_value, pd.Series):
     regime_value = regime_value.iloc[0]
 
-# Signal reflects long, short, and cash states
-if regime_value == "Bull":
-    signal = "LONG"
-elif regime_value == "Crash":
-    signal = "SHORT"
-else:
-    signal = "CASH"
+# Scan trade log to determine actual open position
+current_position = "CASH"
+for tr in (trades or []):
+    if tr["Type"] == "BUY (Long)":
+        current_position = "LONG"
+    elif tr["Type"] == "SELL SHORT":
+        current_position = "SHORT"
+    elif tr["Type"] in ["SELL (Long Exit)", "COVER (Short Exit)"]:
+        current_position = "CASH"
 
+signal = current_position
 banner_color = "#28a745" if signal == "LONG" else "#dc3545" if signal == "SHORT" else "#fd7e14"
+
+# Descriptive subtitle combining actual position + current regime
+if signal == "LONG":
+    if regime_value == "Bull":
+        subtitle = "Holding Long — Bull Regime Active"
+    elif regime_value == "Neutral":
+        subtitle = "Holding Long — Neutral Regime, No Exit Signal"
+    elif regime_value in ["Crash", "Bear"]:
+        subtitle = "Holding Long — Awaiting Exit Confirmation"
+    else:
+        subtitle = "Holding Long"
+elif signal == "SHORT":
+    if regime_value == "Crash":
+        subtitle = "Holding Short — Crash Regime Active"
+    elif regime_value == "Neutral":
+        subtitle = "Holding Short — Neutral Regime, No Exit Signal"
+    elif regime_value == "Bull":
+        subtitle = "Holding Short — Awaiting Exit Confirmation"
+    else:
+        subtitle = "Holding Short"
+else:
+    if regime_value == "Bull":
+        subtitle = "Cash — Watching for Long Entry"
+    elif regime_value in ["Crash", "Bear"]:
+        subtitle = "Cash — Watching for Short Entry"
+    else:
+        subtitle = "Cash — Neutral, No Signal"
 
 st.markdown(f"""
     <div style="background-color:{banner_color}22; border-left:5px solid {banner_color};
                 padding:1rem 1.5rem; border-radius:4px; margin-bottom:1rem">
         <span style="color:{banner_color}; font-size:1.8rem; font-weight:bold">{signal}</span>
-        <span style="color:#ccc; font-size:1.2rem"> &mdash; Regime: {regime_value}</span>
+        <span style="color:#ccc; font-size:1.2rem"> &mdash; {subtitle}</span>
     </div>
 """, unsafe_allow_html=True)
 
@@ -150,13 +178,13 @@ for i, label in enumerate(range_options):
                           type="primary" if st.session_state.chart_range == label else "secondary"):
         st.session_state.chart_range = label
 
-# Slice dataframe to selected range
+# Slice dataframe to selected range — chart_range avoids overwriting nav `selected`
 end_date = df.index[-1]
-selected = st.session_state.chart_range
-if selected == "YTD":
+chart_range = st.session_state.chart_range
+if chart_range == "YTD":
     start_date = pd.Timestamp(f"{end_date.year}-01-01", tz=end_date.tzinfo)
 else:
-    start_date = end_date - pd.Timedelta(days=range_options[selected])
+    start_date = end_date - pd.Timedelta(days=range_options[chart_range])
 df_chart = df[df.index >= start_date]
 
 fig = go.Figure(data=[go.Candlestick(
@@ -168,41 +196,64 @@ fig = go.Figure(data=[go.Candlestick(
     name="Price"
 )])
 
-colors = {"Bull": "rgba(0,255,0,0.1)", "Bear": "rgba(255,0,0,0.1)", "Crash": "rgba(255,0,0,0.2)"}
-
-# Solid marker colors per regime
+# Solid marker colors per regime (entry markers)
 marker_colors = {"Bull": "lime", "Bear": "red", "Crash": "darkred", "Neutral": "gray"}
 
-# Draw a rectangle for each contiguous segment, not one per regime type
-# Also collect segment start points for markers
+# ── Build trade-state series ──────────────────────────────────────────────
+# green  = in a long trade
+# red    = in a short trade
+# dimred = Crash regime but no open trade
+# grey   = cash / neutral
+trades_df_chart = pd.DataFrame(trades) if trades else pd.DataFrame()
+trade_state = pd.Series("cash", index=df_chart.index)
+
+if not trades_df_chart.empty and "Type" in trades_df_chart.columns:
+    cur_side, entry_t = None, None
+    for _, row in trades_df_chart.iterrows():
+        t = pd.Timestamp(row["Time"])
+        if row["Type"] in ["BUY (Long)", "SELL SHORT"]:
+            cur_side = "long" if row["Type"] == "BUY (Long)" else "short"
+            entry_t  = t
+        elif row["Type"] in ["SELL (Long Exit)", "COVER (Short Exit)"] and entry_t is not None:
+            mask = (df_chart.index >= entry_t) & (df_chart.index <= t)
+            trade_state[mask] = cur_side
+            cur_side = entry_t = None
+    if cur_side and entry_t:
+        trade_state[df_chart.index >= entry_t] = cur_side
+
+# Crash with no trade → dim red
+crash_mask = (df_chart["regime"] == "Crash") & (trade_state == "cash")
+trade_state[crash_mask] = "crash"
+
+state_colors = {
+    "long":  "rgba(0,255,0,0.15)",
+    "short": "rgba(255,0,0,0.2)",
+    "crash": "rgba(255,0,0,0.1)",
+    "cash":  "rgba(150,150,150,0.07)",
+}
+
+# Draw background segments
+seg_start = trade_state.index[0]
+seg_state = trade_state.iloc[0]
+for i in range(1, len(trade_state)):
+    if trade_state.iloc[i] != seg_state:
+        fig.add_vrect(x0=seg_start, x1=trade_state.index[i-1],
+                      fillcolor=state_colors[seg_state], opacity=1.0, line_width=0)
+        seg_start = trade_state.index[i]
+        seg_state = trade_state.iloc[i]
+fig.add_vrect(x0=seg_start, x1=trade_state.index[-1],
+              fillcolor=state_colors[seg_state], opacity=1.0, line_width=0)
+
+# Collect regime segment starts for entry markers
 regime_series = df_chart["regime"].dropna()
-segment_start = regime_series.index[0]
-current_regime = regime_series.iloc[0]
-
-# Store segment starts: (timestamp, regime)
-segment_starts = [(segment_start, current_regime)]
-
+segment_starts = []
+r_start, r_current = regime_series.index[0], regime_series.iloc[0]
+segment_starts.append((r_start, r_current))
 for i in range(1, len(regime_series)):
-    if regime_series.iloc[i] != current_regime:
-        fig.add_vrect(
-            x0=segment_start,
-            x1=regime_series.index[i - 1],
-            fillcolor=colors.get(current_regime, "rgba(200,200,200,0.1)"),
-            opacity=0.4,
-            line_width=0
-        )
-        segment_start = regime_series.index[i]
-        current_regime = regime_series.iloc[i]
-        segment_starts.append((segment_start, current_regime))
-
-# Draw the final segment
-fig.add_vrect(
-    x0=segment_start,
-    x1=regime_series.index[-1],
-    fillcolor=colors.get(current_regime, "rgba(200,200,200,0.1)"),
-    opacity=0.4,
-    line_width=0
-)
+    if regime_series.iloc[i] != r_current:
+        r_start   = regime_series.index[i]
+        r_current = regime_series.iloc[i]
+        segment_starts.append((r_start, r_current))
 
 # --- Regime change markers ---
 # Bull: triangle-up below the candle low
