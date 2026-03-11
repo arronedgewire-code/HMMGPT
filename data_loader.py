@@ -27,8 +27,11 @@ def fetch_btc_data(ticker="BTC-USD", retries=5, pause=5):
             return df
         except Exception as e:
             print(f"[data_loader] Attempt {attempt}/{retries} failed: {e}")
-            if "Too Many Requests" in str(e):
-                print(f"[data_loader] Rate limited. Waiting {pause} seconds before retrying...")
-            time.sleep(pause)
+            if "Too Many Requests" in str(e) or "RateLimit" in str(e):
+                wait = pause * attempt  # backoff: 5s, 10s, 15s...
+                print(f"[data_loader] Rate limited. Waiting {wait}s before retrying...")
+                time.sleep(wait)
+            else:
+                time.sleep(pause)
     print(f"[data_loader] Failed to fetch data for {ticker} after multiple attempts.")
     return pd.DataFrame()
