@@ -314,6 +314,9 @@ if equity_curve is not None and not equity_curve.empty:
     max_drawdown = (max_drawdown_dollar / risk_baseline) * 100 if risk_baseline != 0 else 0.0
 
     # avg win/loss - gross profit, gross loss - profit factor - total trades
+    # Guard: PnL ($) column only exists if there are closed trades
+    if "PnL ($)" not in trades_df.columns:
+        trades_df["PnL ($)"] = pd.NA
     wins = trades_df[trades_df["PnL ($)"] > 0]
     losses = trades_df[trades_df["PnL ($)"] < 0]
     avg_win = wins["PnL ($)"].mean() if not wins.empty else 0
