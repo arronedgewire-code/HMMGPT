@@ -24,16 +24,27 @@ def detect_regimes(df, n_states=3):
     df = df.copy()
 
     # -----------------------------------------------
-    # Step 1: Resample hourly features to daily
+    # Step 1: Resample to daily if needed
+    # Detect if input is already daily (median gap >= 20h) to avoid double-resampling
     # -----------------------------------------------
+    median_gap = pd.Series(df.index).diff().median()
+    is_daily = median_gap >= pd.Timedelta(hours=20)
+
     daily = pd.DataFrame()
-    daily["Returns"] = df["Close"].resample("D").last().pct_change(fill_method=None)
-    daily["Range"] = (
-        df["High"].resample("D").max() - df["Low"].resample("D").min()
-    ) / df["Close"].resample("D").last()
-    daily["volume_vol"] = (
-        df["Volume"].resample("D").sum().pct_change().rolling(7).std()
-    )
+    if is_daily:
+        # Already daily — use directly
+        daily["Returns"] = df["Close"].pct_change(fill_method=None)
+        daily["Range"] = (df["High"] - df["Low"]) / df["Close"]
+        daily["volume_vol"] = df["Volume"].pct_change().rolling(5).std()
+    else:
+        # Hourly — resample to daily
+        daily["Returns"] = df["Close"].resample("D").last().pct_change(fill_method=None)
+        daily["Range"] = (
+            df["High"].resample("D").max() - df["Low"].resample("D").min()
+        ) / df["Close"].resample("D").last()
+        daily["volume_vol"] = (
+            df["Volume"].resample("D").sum().pct_change().rolling(7).std()
+        )
     daily = daily.dropna()
 
     if daily.empty or daily.nunique().min() <= 1:
