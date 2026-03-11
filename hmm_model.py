@@ -24,16 +24,30 @@ def detect_regimes(df, n_states=3):
     df = df.copy()
 
     # -----------------------------------------------
-    # Step 1: Resample hourly features to daily
+    # Step 1: Resample to daily (detect if already daily)
+    # More features = more stable HMM convergence across data window shifts
     # -----------------------------------------------
+    median_gap = pd.Series(df.index).diff().median()
+    is_daily = median_gap >= pd.Timedelta(hours=20)
+
+    if is_daily:
+        close_d  = df["Close"]
+        high_d   = df["High"]
+        low_d    = df["Low"]
+        volume_d = df["Volume"]
+    else:
+        close_d  = df["Close"].resample("D").last()
+        high_d   = df["High"].resample("D").max()
+        low_d    = df["Low"].resample("D").min()
+        volume_d = df["Volume"].resample("D").sum()
+
     daily = pd.DataFrame()
-    daily["Returns"] = df["Close"].resample("D").last().pct_change()
-    daily["Range"] = (
-        df["High"].resample("D").max() - df["Low"].resample("D").min()
-    ) / df["Close"].resample("D").last()
-    daily["volume_vol"] = (
-        df["Volume"].resample("D").sum().pct_change().rolling(7).std()
-    )
+    daily["Returns"]    = close_d.pct_change(fill_method=None)
+    daily["Range"]      = (high_d - low_d) / close_d
+    daily["volume_vol"] = volume_d.pct_change().rolling(5 if is_daily else 7).std()
+    daily["Momentum"]   = close_d.pct_change(5)
+    daily["Volatility"] = daily["Returns"].rolling(5 if is_daily else 7).std()
+    daily["vol_trend"]  = volume_d.rolling(5).mean() / volume_d.rolling(20).mean()
     daily = daily.dropna()
 
     if daily.empty or daily.nunique().min() <= 1:
@@ -48,9 +62,23 @@ def detect_regimes(df, n_states=3):
     X = scaler.fit_transform(daily)
 
     try:
-        model = GaussianHMM(n_components=n_states, covariance_type="full", n_iter=1000, random_state=42)
-        model.fit(X)
-        hidden_states = model.predict(X)
+        # Multiple restarts — keep best scoring model for stable convergence
+        best_model, best_score = None, -np.inf
+        for seed in range(5):
+            m = GaussianHMM(
+                n_components=n_states, covariance_type="full",
+                n_iter=2000, tol=1e-3, random_state=seed
+            )
+            m.fit(X)
+            try:
+                s = m.score(X)
+                if s > best_score:
+                    best_score, best_model = s, m
+            except Exception:
+                continue
+        if best_model is None:
+            raise ValueError("All HMM restarts failed.")
+        hidden_states = best_model.predict(X)
     except Exception as e:
         print(f"[detect_regimes] HMM failed: {e}")
         df["regime"] = "Neutral"
