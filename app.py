@@ -343,9 +343,10 @@ if equity_curve is not None and not equity_curve.empty:
             current_loss_streak = 0
             max_consec_wins = max(max_consec_wins, current_win_streak)
 
-    # Long vs Short breakdown — guard against empty trades_df
-    if "Type" not in trades_df.columns:
-        trades_df["Type"] = pd.NA
+    # Long vs Short breakdown — ensure all expected columns exist before filtering
+    for col in ["Type", "PnL ($)", "PnL (%)"]:
+        if col not in trades_df.columns:
+            trades_df[col] = pd.NA
     long_exits = trades_df[trades_df["Type"] == "SELL (Long Exit)"]
     short_exits = trades_df[trades_df["Type"] == "COVER (Short Exit)"]
     long_win_rate = float((long_exits["PnL ($)"].gt(0).sum() / len(long_exits)) * 100) if len(long_exits) > 0 else 0.0
