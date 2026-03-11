@@ -114,51 +114,71 @@ regime_value = latest["regime"] if "regime" in latest.index else "N/A"
 if isinstance(regime_value, pd.Series):
     regime_value = regime_value.iloc[0]
 
-# Scan trade log to determine actual open position
+# Scan trade log to determine actual open position + entry price
 current_position = "CASH"
+entry_price_open = None
+entry_risk_open  = None
 for tr in (trades or []):
     if tr["Type"] == "BUY (Long)":
         current_position = "LONG"
+        entry_price_open = tr.get("Price")
+        entry_risk_open  = tr.get("Risk ($)")
     elif tr["Type"] == "SELL SHORT":
         current_position = "SHORT"
+        entry_price_open = tr.get("Price")
+        entry_risk_open  = tr.get("Risk ($)")
     elif tr["Type"] in ["SELL (Long Exit)", "COVER (Short Exit)"]:
         current_position = "CASH"
+        entry_price_open = None
+        entry_risk_open  = None
 
 signal = current_position
 banner_color = "#28a745" if signal == "LONG" else "#dc3545" if signal == "SHORT" else "#fd7e14"
 
-# Descriptive subtitle combining actual position + current regime
+# Unrealised PnL on open position
+current_price = float(df["Close"].iloc[-1])
+unrealised_str = ""
+unrealised_color = "#ccc"
+if signal in ["LONG", "SHORT"] and entry_price_open and entry_risk_open:
+    if signal == "LONG":
+        raw_pnl = (current_price - entry_price_open) * (entry_risk_open * 25 / entry_price_open)
+    else:
+        raw_pnl = (entry_price_open - current_price) * (entry_risk_open * 25 / entry_price_open)
+    pct = (raw_pnl / entry_risk_open) * 100
+    unrealised_color = "#28a745" if raw_pnl >= 0 else "#dc3545"
+    arrow = "▲" if raw_pnl >= 0 else "▼"
+    unrealised_str = f"{arrow} ${raw_pnl:+.2f} ({pct:+.2f}%) unrealised"
+
+# Regime context label
 if signal == "LONG":
-    if regime_value == "Bull":
-        subtitle = "Holding Long — Bull Regime Active"
-    elif regime_value == "Neutral":
-        subtitle = "Holding Long — Neutral Regime, No Exit Signal"
+    if regime_value == "Neutral":
+        regime_label = "Neutral — No Exit Signal"
     elif regime_value in ["Crash", "Bear"]:
-        subtitle = "Holding Long — Awaiting Exit Confirmation"
+        regime_label = "⚠️ Crash Regime — Watching Exit"
     else:
-        subtitle = "Holding Long"
+        regime_label = f"{regime_value} Regime"
 elif signal == "SHORT":
-    if regime_value == "Crash":
-        subtitle = "Holding Short — Crash Regime Active"
-    elif regime_value == "Neutral":
-        subtitle = "Holding Short — Neutral Regime, No Exit Signal"
+    if regime_value == "Neutral":
+        regime_label = "Neutral — No Exit Signal"
     elif regime_value == "Bull":
-        subtitle = "Holding Short — Awaiting Exit Confirmation"
+        regime_label = "⚠️ Bull Regime — Watching Exit"
     else:
-        subtitle = "Holding Short"
+        regime_label = f"{regime_value} Regime"
 else:
     if regime_value == "Bull":
-        subtitle = "Cash — Watching for Long Entry"
+        regime_label = "Bull Regime — Watching for Long Entry"
     elif regime_value in ["Crash", "Bear"]:
-        subtitle = "Cash — Watching for Short Entry"
+        regime_label = "Crash Regime — Watching for Short Entry"
     else:
-        subtitle = "Cash — Neutral, No Signal"
+        regime_label = "Neutral — No Signal"
 
+unrealised_html = f'<span style="color:{unrealised_color}; font-size:1.1rem; font-weight:600; margin-left:1.2rem">{unrealised_str}</span>' if unrealised_str else ""
 st.markdown(f"""
     <div style="background-color:{banner_color}22; border-left:5px solid {banner_color};
-                padding:1rem 1.5rem; border-radius:4px; margin-bottom:1rem">
+                padding:1rem 1.5rem; border-radius:4px; margin-bottom:1rem; display:flex; align-items:center; flex-wrap:wrap; gap:0.5rem">
         <span style="color:{banner_color}; font-size:1.8rem; font-weight:bold">{signal}</span>
-        <span style="color:#ccc; font-size:1.2rem"> &mdash; {subtitle}</span>
+        {unrealised_html}
+        <span style="color:#888; font-size:1rem; margin-left:auto">{regime_label}</span>
     </div>
 """, unsafe_allow_html=True)
 
