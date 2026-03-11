@@ -61,4 +61,23 @@ def add_indicators(df):
     # -----------------------------
     df["Volume_SMA"] = volume.rolling(20).mean()
 
+    # -----------------------------
+    # ATR & ATR ratio (expansion vs its own MA)
+    # -----------------------------
+    df["ATR"] = ta.volatility.AverageTrueRange(high=high, low=low, close=close, window=14).average_true_range()
+    df["ATR_ratio"] = df["ATR"] / df["ATR"].rolling(14).mean()
+
+    # -----------------------------
+    # VWAP (rolling 24-bar, resets-free approximation for hourly data)
+    # -----------------------------
+    typical_price = (high + low + close) / 3
+    df["VWAP"] = (typical_price * volume).rolling(24).sum() / volume.rolling(24).sum()
+
+    # -----------------------------
+    # Stochastic Oscillator (k=14, d=3)
+    # -----------------------------
+    stoch = ta.momentum.StochasticOscillator(high=high, low=low, close=close, window=14, smooth_window=3)
+    df["Stoch_K"] = stoch.stoch()
+    df["Stoch_D"] = stoch.stoch_signal()
+
     return df
