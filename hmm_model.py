@@ -24,27 +24,21 @@ def detect_regimes(df, n_states=3):
     df = df.copy()
 
     # -----------------------------------------------
-    # Step 1: Resample to daily if needed
-    # Detect if input is already daily (median gap >= 20h) to avoid double-resampling
+    # Step 1: Resample hourly features to daily
+    # More features = more stable HMM convergence across data window shifts
     # -----------------------------------------------
-    median_gap = pd.Series(df.index).diff().median()
-    is_daily = median_gap >= pd.Timedelta(hours=20)
+    close_daily  = df["Close"].resample("D").last()
+    high_daily   = df["High"].resample("D").max()
+    low_daily    = df["Low"].resample("D").min()
+    volume_daily = df["Volume"].resample("D").sum()
 
     daily = pd.DataFrame()
-    if is_daily:
-        # Already daily — use directly
-        daily["Returns"] = df["Close"].pct_change(fill_method=None)
-        daily["Range"] = (df["High"] - df["Low"]) / df["Close"]
-        daily["volume_vol"] = df["Volume"].pct_change().rolling(5).std()
-    else:
-        # Hourly — resample to daily
-        daily["Returns"] = df["Close"].resample("D").last().pct_change(fill_method=None)
-        daily["Range"] = (
-            df["High"].resample("D").max() - df["Low"].resample("D").min()
-        ) / df["Close"].resample("D").last()
-        daily["volume_vol"] = (
-            df["Volume"].resample("D").sum().pct_change().rolling(7).std()
-        )
+    daily["Returns"]    = close_daily.pct_change(fill_method=None)
+    daily["Range"]      = (high_daily - low_daily) / close_daily
+    daily["volume_vol"] = volume_daily.pct_change().rolling(7).std()
+    daily["Momentum"]   = close_daily.pct_change(5)          # 5-day momentum
+    daily["Volatility"] = daily["Returns"].rolling(7).std()  # rolling vol
+    daily["vol_trend"]  = volume_daily.rolling(5).mean() / volume_daily.rolling(20).mean()  # vol ratio
     daily = daily.dropna()
 
     if daily.empty or daily.nunique().min() <= 1:
