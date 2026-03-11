@@ -1,4 +1,3 @@
-# backtester.py
 import pandas as pd
 import numpy as np
 
@@ -6,37 +5,30 @@ import numpy as np
 # Safe float conversion
 # -----------------------------
 def safe_float(val):
-    """
-    Convert a scalar or single-element Series to float.
-    """
     if isinstance(val, pd.Series):
         return float(val.iloc[0]) if not val.empty else 0.0
     return float(val)
 
 # -----------------------------
-# Bullish Confirmation score (Voting System)
+# Bullish Confirmation score
 # -----------------------------
 def confirmation_score(row):
-    """
-    Compute number of bullish confirmations for long entry.
-    Returns integer between 0-8.
-    """
     score = 0
     try:
-        rsi = safe_float(row.get("RSI", 0))
-        momentum = safe_float(row.get("Momentum", 0))
-        vol = safe_float(row.get("Volatility", 0))
-        volume = safe_float(row.get("Volume", 0))
+        rsi        = safe_float(row.get("RSI", 0))
+        momentum   = safe_float(row.get("Momentum", 0))
+        vol        = safe_float(row.get("Volatility", 0))
+        volume     = safe_float(row.get("Volume", 0))
         volume_sma = safe_float(row.get("Volume_SMA", 0))
-        adx = safe_float(row.get("ADX", 0))
-        close = safe_float(row.get("Close", 0))
-        ema50 = safe_float(row.get("EMA50", 0))
-        ema100 = safe_float(row.get("EMA100", 0))
-        ema200 = safe_float(row.get("EMA200", 0))
-        macd = safe_float(row.get("MACD", 0))
-        signal = safe_float(row.get("Signal", 0))
+        adx        = safe_float(row.get("ADX", 0))
+        close      = safe_float(row.get("Close", 0))
+        ema50      = safe_float(row.get("EMA50", 0))
+        ema100     = safe_float(row.get("EMA100", 0))
+        ema200     = safe_float(row.get("EMA200", 0))
+        macd       = safe_float(row.get("MACD", 0))
+        signal     = safe_float(row.get("Signal", 0))
 
-        conditions = [
+        score = sum([
             rsi < 90,
             momentum > 0.01,
             vol < 0.06,
@@ -45,50 +37,42 @@ def confirmation_score(row):
             close > ema50,
             close > ema100,
             close > ema200,
-            macd > signal
-        ]
-
-        score = sum(conditions)
+            macd > signal,
+        ])
     except Exception as e:
         print(f"[backtester] confirmation_score error: {e}")
     return score
 
 # -----------------------------
-# Bearish Confirmation score (Voting System)
+# Bearish Confirmation score
 # -----------------------------
 def bearish_confirmation_score(row):
-    """
-    Compute number of bearish confirmations for short entry.
-    Returns integer between 0-8.
-    """
     score = 0
     try:
-        rsi = safe_float(row.get("RSI", 0))
-        momentum = safe_float(row.get("Momentum", 0))
-        vol = safe_float(row.get("Volatility", 0))
-        volume = safe_float(row.get("Volume", 0))
+        rsi        = safe_float(row.get("RSI", 0))
+        momentum   = safe_float(row.get("Momentum", 0))
+        vol        = safe_float(row.get("Volatility", 0))
+        volume     = safe_float(row.get("Volume", 0))
         volume_sma = safe_float(row.get("Volume_SMA", 0))
-        adx = safe_float(row.get("ADX", 0))
-        close = safe_float(row.get("Close", 0))
-        ema50 = safe_float(row.get("EMA50", 0))
-        ema100 = safe_float(row.get("EMA100", 0))
-        ema200 = safe_float(row.get("EMA200", 0))
-        macd = safe_float(row.get("MACD", 0))
-        signal = safe_float(row.get("Signal", 0))
+        adx        = safe_float(row.get("ADX", 0))
+        close      = safe_float(row.get("Close", 0))
+        ema50      = safe_float(row.get("EMA50", 0))
+        ema100     = safe_float(row.get("EMA100", 0))
+        ema200     = safe_float(row.get("EMA200", 0))
+        macd       = safe_float(row.get("MACD", 0))
+        signal     = safe_float(row.get("Signal", 0))
 
-        conditions = [
-            (rsi > 70 or rsi < 60),  # overbought exhaustion OR bears in control
-            momentum < -0.01,    # negative momentum
-            vol > 0.03,          # elevated volatility (panic selling)
-            volume > volume_sma, # volume surge on down move
-            adx > 25,            # strong trend conviction
-            close < ema50,       # price broken below ema50
-            close < ema100,      # price broken below ema200
-            close < ema200,      # price broken below ema200
-            macd < signal        # bearish MACD crossover
-        ]
-
-        score = sum(conditions)
+        score = sum([
+            (rsi > 70 or rsi < 60),
+            momentum < -0.01,
+            vol > 0.03,
+            volume > volume_sma,
+            adx > 25,
+            close < ema50,
+            close < ema100,
+            close < ema200,
+            macd < signal,
+        ])
     except Exception as e:
         print(f"[backtester] bearish_confirmation_score error: {e}")
     return score
@@ -96,112 +80,141 @@ def bearish_confirmation_score(row):
 # -----------------------------
 # Backtesting engine
 # -----------------------------
-def run_backtest(df, starting_capital=10000, leverage=10, min_confirmations=6, short_min_confirmations=6, cooldown_hours=12):
+def run_backtest(df, starting_capital=10000, leverage=10,
+                 min_confirmations=6, short_min_confirmations=6,
+                 cooldown_hours=12):
     """
-    Run regime-based backtest with long and short positions.
-    # Initial capital: $1000 | Leverage: 25x | Risk per trade: 2% of current capital (dynamic)
-    - Long: entered on Bull regime with >= min_confirmations, exits on Crash
-    - Short: entered on Crash regime with >= short_min_confirmations, exits only on Bull
-    - Neutral regime: no new positions
-    - Cooldown only applies to long re-entries, not short -> long transitions
+    Regime-based backtest — long & short positions.
+    - Long:  Bull regime + bullish confirmations
+    - Short: Crash regime + bearish confirmations
+    - Exits: regime change OR trailing stop OR hard stop loss
+    - Cooldown applied symmetrically after stop/trail exits (both sides)
+    - Regime-change exits allow immediate re-entry in the new direction
     """
     df = df.copy()
-    capital = starting_capital
-    risk_per_trade = capital * 0.02  # initialised here, updated dynamically on each entry
-    position = 0          # size of position (always positive)
-    position_side = None  # "long" or "short"
-    entry_price = 0
-    cooldown_until = None
-    equity_curve = []
-    trades = []
+    capital        = starting_capital
+    risk_per_trade = capital * 0.02
+    position       = 0
+    position_side  = None
+    entry_price    = 0
+    equity_curve   = []
+    trades         = []
+
+    # Cooldowns — only applied after stop/trailing exits, not regime-change exits
+    long_cooldown_until  = None
+    short_cooldown_until = None
 
     # ── Stop loss & trailing stop config ──────────────────────────────────────
-    STOP_LOSS_PCT  = -100.0  # flat hard stop — exit if PnL% drops to this
-    TRAIL_ACTIVATE =   40.0  # trailing stop arms once PnL% reaches this
-    TRAIL_DISTANCE =   20.0  # trail sits this many % below the peak PnL%
+    STOP_LOSS_PCT  = -100.0   # hard stop: exit if PnL% hits this
+    TRAIL_ACTIVATE =   40.0   # trail arms once PnL% reaches this
+    TRAIL_DISTANCE =   20.0   # trail sits this many % below the peak
     trail_active   = False
     peak_pnl_pct   = 0.0
 
     for i in range(len(df)):
-        row = df.iloc[i]
-        time = df.index[i]
+        row   = df.iloc[i]
+        time  = df.index[i]
 
-        # Check regime safely
         regime = row.get("regime", "Neutral")
         if isinstance(regime, pd.Series):
             regime = regime.iloc[0] if not regime.empty else "Neutral"
 
         close_price = safe_float(row.get("Close", 0))
 
-        # --- Exit logic (checked before entry) ---
+        # ── Regime-change exits (checked before entry) ────────────────────────
 
-        # Close long on Bear or Crash
         if position_side == "long" and regime in ["Bear", "Crash"]:
-            exit_price = close_price
-            pnl = (exit_price - entry_price) * position
-            capital += pnl
-            pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade != 0 else 0.0  # % return on capital risked
-            trades.append({"Time": time, "Type": "SELL (Long Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%", "Exit Reason": "Regime Change (Crash)"})
-            position = 0
-            position_side = None
-            cooldown_until = time + pd.Timedelta(hours=cooldown_hours)
+            bear_score = bearish_confirmation_score(row)
+            if bear_score >= 1:
+                pnl     = (close_price - entry_price) * position
+                capital += pnl
+                pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade else 0.0
+                trades.append({
+                    "Time": time, "Type": "SELL (Long Exit)",
+                    "Price": round(close_price, 2),
+                    "PnL ($)": round(pnl, 2),
+                    "PnL (%)": f"{pnl_pct:+.2f}%",
+                    "Exit Reason": "Regime Change (Crash)",
+                })
+                position      = 0
+                position_side = None
+                trail_active  = False
+                peak_pnl_pct  = 0.0
+                # No cooldown — short can open immediately on same candle
 
-        # Close short only on Bull signal
         elif position_side == "short" and regime == "Bull":
-            exit_price = close_price
-            pnl = (entry_price - exit_price) * position  # profit when price falls
+            pnl     = (entry_price - close_price) * position
             capital += pnl
-            pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade != 0 else 0.0  # % return on capital risked
-            trades.append({"Time": time, "Type": "COVER (Short Exit)", "Price": round(exit_price, 2), "PnL ($)": round(pnl, 2), "PnL (%)": f"{pnl_pct:+.2f}%", "Exit Reason": "Regime Change (Bull)"})
-            position = 0
+            pnl_pct = (pnl / risk_per_trade) * 100 if risk_per_trade else 0.0
+            trades.append({
+                "Time": time, "Type": "COVER (Short Exit)",
+                "Price": round(close_price, 2),
+                "PnL ($)": round(pnl, 2),
+                "PnL (%)": f"{pnl_pct:+.2f}%",
+                "Exit Reason": "Regime Change (Bull)",
+            })
+            position      = 0
             position_side = None
-            # No cooldown on short -> long transition so Bull entry can fire immediately
+            trail_active  = False
+            peak_pnl_pct  = 0.0
+            # No cooldown — long can open immediately on same candle
 
-        # --- Entry logic ---
+        # ── Entry logic ────────────────────────────────────────────────────────
 
         if position_side is None:
-            # Long entry: Bull regime, bullish confirmations, no cooldown active
-            in_cooldown = cooldown_until is not None and time < cooldown_until
-            if regime == "Bull" and not in_cooldown:
+            in_long_cooldown  = long_cooldown_until  is not None and time < long_cooldown_until
+            in_short_cooldown = short_cooldown_until is not None and time < short_cooldown_until
+
+            if regime == "Bull" and not in_long_cooldown:
                 score = confirmation_score(row)
                 if score >= min_confirmations:
-                    risk_per_trade = capital * 0.02  # 2% of current capital
-                    position = (risk_per_trade * leverage) / close_price
-                    entry_price = close_price
-                    position_side = "long"
-                    notional = risk_per_trade * leverage
-                    trail_active = False
-                    peak_pnl_pct = 0.0
-                    trades.append({"Time": time, "Type": "BUY (Long)", "Price": round(entry_price, 2), "Risk ($)": round(risk_per_trade, 2), "Notional ($)": f"x{leverage} = ${notional:.2f}"})
+                    risk_per_trade = capital * 0.02
+                    position       = (risk_per_trade * leverage) / close_price
+                    entry_price    = close_price
+                    position_side  = "long"
+                    trail_active   = False
+                    peak_pnl_pct   = 0.0
+                    notional       = risk_per_trade * leverage
+                    trades.append({
+                        "Time": time, "Type": "BUY (Long)",
+                        "Price": round(entry_price, 2),
+                        "Risk ($)": round(risk_per_trade, 2),
+                        "Notional ($)": f"x{leverage} = ${notional:.2f}",
+                    })
 
-            # Short entry: Crash regime, bearish confirmations
-            elif regime == "Crash":
+            elif regime == "Crash" and not in_short_cooldown:
                 score = bearish_confirmation_score(row)
                 if score >= short_min_confirmations:
-                    risk_per_trade = capital * 0.02  # 2% of current capital
-                    position = (risk_per_trade * leverage) / close_price
-                    entry_price = close_price
-                    position_side = "short"
-                    notional = risk_per_trade * leverage
-                    trail_active = False
-                    peak_pnl_pct = 0.0
-                    trades.append({"Time": time, "Type": "SELL SHORT", "Price": round(entry_price, 2), "Risk ($)": round(risk_per_trade, 2), "Notional ($)": f"x{leverage} = ${notional:.2f}"})
+                    risk_per_trade = capital * 0.02
+                    position       = (risk_per_trade * leverage) / close_price
+                    entry_price    = close_price
+                    position_side  = "short"
+                    trail_active   = False
+                    peak_pnl_pct   = 0.0
+                    notional       = risk_per_trade * leverage
+                    trades.append({
+                        "Time": time, "Type": "SELL SHORT",
+                        "Price": round(entry_price, 2),
+                        "Risk ($)": round(risk_per_trade, 2),
+                        "Notional ($)": f"x{leverage} = ${notional:.2f}",
+                    })
 
-        # --- Stop loss & trailing stop check ---
+        # ── Stop loss & trailing stop ──────────────────────────────────────────
+
         if position_side in ["long", "short"] and risk_per_trade > 0:
-            if position_side == "long":
-                unrealised_pnl = (close_price - entry_price) * position
-            else:
-                unrealised_pnl = (entry_price - close_price) * position
+            unrealised_pnl = (
+                (close_price - entry_price) * position if position_side == "long"
+                else (entry_price - close_price) * position
+            )
             current_pnl_pct = (unrealised_pnl / risk_per_trade) * 100
 
             exit_reason = None
 
-            # 1. Flat hard stop loss
+            # 1. Hard stop loss
             if current_pnl_pct <= STOP_LOSS_PCT:
                 exit_reason = f"Stop Loss ({current_pnl_pct:.1f}%)"
 
-            # 2. Trailing stop (only if hard stop not triggered)
+            # 2. Trailing stop
             else:
                 if current_pnl_pct >= TRAIL_ACTIVATE:
                     trail_active = True
@@ -212,25 +225,29 @@ def run_backtest(df, starting_capital=10000, leverage=10, min_confirmations=6, s
                         exit_reason = f"Trailing Stop (peak: {peak_pnl_pct:.1f}%)"
 
             if exit_reason:
-                pnl = unrealised_pnl
-                capital += pnl
-                pnl_pct = (pnl / risk_per_trade) * 100
-                exit_type = "SELL (Long Exit)" if position_side == "long" else "COVER (Short Exit)"
+                was_long  = position_side == "long"
+                pnl       = unrealised_pnl
+                capital  += pnl
+                pnl_pct   = (pnl / risk_per_trade) * 100
+                exit_type = "SELL (Long Exit)" if was_long else "COVER (Short Exit)"
                 trades.append({
                     "Time": time, "Type": exit_type,
                     "Price": round(close_price, 2),
                     "PnL ($)": round(pnl, 2),
                     "PnL (%)": f"{pnl_pct:+.2f}%",
-                    "Exit Reason": exit_reason
+                    "Exit Reason": exit_reason,
                 })
-                position = 0
+                position      = 0
                 position_side = None
-                trail_active = False
-                peak_pnl_pct = 0.0
-                if exit_type == "SELL (Long Exit)":
-                    cooldown_until = time + pd.Timedelta(hours=cooldown_hours)
+                trail_active  = False
+                peak_pnl_pct  = 0.0
+                # Cooldown in same direction — prevents immediate re-entry churn
+                if was_long:
+                    long_cooldown_until  = time + pd.Timedelta(hours=cooldown_hours)
+                else:
+                    short_cooldown_until = time + pd.Timedelta(hours=cooldown_hours)
 
-        # --- Equity curve update ---
+        # ── Equity curve ───────────────────────────────────────────────────────
         if position_side == "long":
             equity_curve.append(capital + (close_price - entry_price) * position)
         elif position_side == "short":
@@ -240,4 +257,3 @@ def run_backtest(df, starting_capital=10000, leverage=10, min_confirmations=6, s
 
     df["Equity"] = equity_curve
     return df, trades
-
